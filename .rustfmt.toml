@@ -2,10 +2,3 @@ edition = "2024"
 style_edition = "2024"
 max_width = 80
 tab_spaces = 2
-wrap_comments = true
-# disabled because need nightly
-#brace_style = "AlwaysNextLine"
-#control_brace_style = "AlwaysNextLine"
-#struct_lit_single_line = false
-#unstable_features = true
-#trailing_comma = "Never"
