@@ -5,7 +5,7 @@ impl axum::response::IntoResponse for business::error::Error {
   /// Turn any error into an HTTP internal server error to be sent to the
   /// client.
   fn into_response(self) -> axum::response::Response {
-    // TODO: log the error.
+    tracing::error!("Internal error: {}", &self);
     return (
       axum::http::StatusCode::INTERNAL_SERVER_ERROR,
       String::from("Internal server error"),
@@ -15,8 +15,8 @@ impl axum::response::IntoResponse for business::error::Error {
 }
 
 impl From<serde_json::Error> for business::error::Error {
-  fn from(_e: serde_json::Error) -> business::error::Error {
-    // TODO: Better error.
+  fn from(e: serde_json::Error) -> business::error::Error {
+    tracing::error!("Internal JSON error: {}", e);
     return business::error::Error::InvalidParameter;
   }
 }
