@@ -9,13 +9,13 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
 
 # List does not require authorization.
 expect_get game-features/list -o "$tmp_dir"/list-1.json
-expect_eval_eq 0 "jq length '$tmp_dir'/list-1.json"
+expect_json_eq '{}' "$tmp_dir"/list-1.json
 
 # No authorization header: the request should fail.
 expect_post_error 401 \
                   game-features/update \
                   -H "Content-Type: application/json" \
-                  --data '{"id": "item-1", "cost_in_coins": 11}'
+                  --data '{"item-1": 11}'
 
 # Create an administrator.
 expect_post leads/create -H "Authorization: _" \
@@ -26,7 +26,7 @@ token="$(jq -r . "$tmp_dir"/lead.json)"
 expect_post game-features/update \
             -H "Authorization: $token" \
             -H "Content-Type: application/json" \
-            --data '{"id": "item-1", "cost_in_coins": 11}'
+            --data '{"item-1": 11}'
 expect_get game-features/list -o "$tmp_dir"/list-2.json
 expect_json_eq '{"item-1": 11}' "$tmp_dir"/list-2.json
 
@@ -34,7 +34,7 @@ expect_json_eq '{"item-1": 11}' "$tmp_dir"/list-2.json
 expect_post game-features/update \
             -H "Authorization: $token" \
             -H "Content-Type: application/json" \
-            --data '{"id": "item-2", "cost_in_coins": 22}'
+            --data '{"item-2": 22}'
 expect_get game-features/list -o "$tmp_dir"/list-3.json
 expect_json_eq '{"item-1": 11, "item-2": 22}' "$tmp_dir"/list-3.json
 
@@ -42,7 +42,7 @@ expect_json_eq '{"item-1": 11, "item-2": 22}' "$tmp_dir"/list-3.json
 expect_post game-features/update \
             -H "Authorization: $token" \
             -H "Content-Type: application/json" \
-            --data '{"id": "item-2", "cost_in_coins": 202}'
+            --data '{"item-2": 202}'
 expect_get game-features/list -o "$tmp_dir"/list-4.json
 expect_json_eq '{"item-1": 11, "item-2": 202}' "$tmp_dir"/list-4.json
 

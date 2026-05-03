@@ -17,28 +17,26 @@ async fn auth(
   return auth::validate_request(&state_handle.0.leaders, request, next).await;
 }
 
-#[derive(serde::Deserialize)]
-struct GameFeaturesUpdateRequest {
-  id: String,
-  cost_in_coins: i32,
-}
-
-/// Set the price of a game feature, creating the item if it does not exist.
-/// This requires an administrator.
+/**
+ * Set the price of a game feature, creating the item if it does not exist.
+ * This requires an administrator.
+ *
+ * Example:
+ * {
+ *   "product-1: 200,
+ *   "product-2: 500
+ * }
+ */
 async fn update(
   state_handle: axum::extract::State<ServiceState>,
-  axum::response::Json(request): axum::response::Json<
-    GameFeaturesUpdateRequest,
+  axum::response::Json(features): axum::response::Json<
+    std::collections::HashMap<String, i32>,
   >,
 ) -> business::result::Result<()> {
   let game_features: &business::game_features::GameFeatures =
     &state_handle.0.game_features;
 
-  game_features
-    .update(&request.id, request.cost_in_coins)
-    .await?;
-
-  return Ok(());
+  return game_features.batch_put(&features).await;
 }
 
 /// List all game features and their prices.

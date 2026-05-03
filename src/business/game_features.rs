@@ -30,31 +30,38 @@ impl GameFeatures {
     return result;
   }
 
-  /// Adds a new game feature with the given cost in coins, or update the
+  /// Adds game features with the given cost in coins, or update the
   /// price of a game feature if the ID already exists.
-  pub async fn update(
+  pub async fn batch_put(
     &self,
-    id: &str,
-    cost_in_coins: i32,
+    features: &std::collections::HashMap<String, i32>,
   ) -> result::Result<()> {
-    if cost_in_coins < 0 {
-      return Err(error::Error::InvalidParameter);
+    if features.is_empty() {
+      return Ok(());
     }
 
-    self
-      .m_db
-      .get()
-      .await?
-      .execute(
-        "insert into game_features \
+    let mut client: deadpool_postgres::Object = self.m_db.get().await?;
+    let transaction: deadpool_postgres::Transaction<'_> =
+      client.transaction().await?;
+
+    for (id, coins) in features {
+      if *coins < 0 {
+        tracing::error!("Feature cost '{}' cannot be negative", &id);
+        return Err(error::Error::InvalidParameter);
+      }
+
+      transaction
+        .execute(
+          "insert into game_features \
            values ($1, $2) \
            on conflict (id) \
            do update set cost_in_coins = $2",
-        &[&id, &cost_in_coins],
-      )
-      .await?;
+          &[&id, &coins],
+        )
+        .await?;
+    }
 
-    return Ok(());
+    return Ok(transaction.commit().await?);
   }
 
   /// Returns a map of game feature IDs as keys and their cost as coins as
