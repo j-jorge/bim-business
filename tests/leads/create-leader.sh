@@ -21,7 +21,7 @@ token="$(jq -r . "$tmp_dir"/create-1.json)"
 expect_get leads/list -H "Authorization: $token" \
      -o "$tmp_dir"/list-1.json
 
-expect_eq 1 "jq length '$tmp_dir'/list-1.json"
+expect_eval_eq 1 "jq length '$tmp_dir'/list-1.json"
 
 expect_post_error 401 leads/create -H "Authorization: _"
 
@@ -31,4 +31,4 @@ expect_post leads/create -H "Authorization: $token" \
 expect_get leads/list -H "Authorization: $token" \
      -o "$tmp_dir"/list-2.json
 
-expect_eq 2 "jq length '$tmp_dir'/list-2.json"
+expect_eval_eq 2 "jq length '$tmp_dir'/list-2.json"

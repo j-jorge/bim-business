@@ -9,7 +9,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
 
 # List does not require authorization.
 expect_get flat-client-config/list -o "$tmp_dir"/list-1.json
-expect_eq 0 "jq length '$tmp_dir'/list-1.json"
+expect_eval_eq 0 "jq length '$tmp_dir'/list-1.json"
 
 # No authorization header: the request should fail.
 expect_post_error 401 \

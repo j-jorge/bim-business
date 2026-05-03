@@ -100,9 +100,44 @@ expect_false()
 }
 
 # Check that the two arguments are lexicographically equal to each
-# other. For example `expect_eq 'abc def' 'abc def' pass, `expect_eq 1
+# other. For example `expect_eq 'abc def' 'abc def'` pass, `expect_eq 1
 # 01` fails.
 expect_eq()
+{
+    if (( $# != 2 ))
+    then
+        fail_count=$((fail_count + 1))
+        echo -e \
+             "${red}[ FAIL ]$reset_color Expected two arguments, got $#:" \
+             "$@"
+        return
+    fi
+
+    local expected
+    expected="$1"
+
+    local actual
+    actual="$2"
+
+    if [[ "$expected" = "$actual" ]]
+    then
+        echo -e "${green}[ PASS ]$reset_color '$2' = '$1'."
+    else
+        fail_count=$((fail_count + 1))
+        echo -e "${red}[ FAIL ]$reset_color '$2' = '$1'."
+        echo "Expected: $expected"
+        echo "  Actual: $actual"
+    fi
+}
+
+# Pass the second argument to eval then check it is lexicographically
+# equal to the first argument. For example `expect_eq '123' 'echo 123'`
+# pass, `expect_eq 123 123` fails.
+#
+# This is similar to expect_eq except that expect_eval_eq is able to
+# display the expression in the logs, while expect_eq can only print
+# the result.
+expect_eval_eq()
 {
     if (( $# != 2 ))
     then
