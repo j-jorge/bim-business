@@ -21,11 +21,6 @@ pub async fn run_migration(
   return Ok(());
 }
 
-pub struct ShopProduct {
-  pub product_id: String,
-  pub coins: i32,
-}
-
 pub struct Shop {
   m_db: deadpool_postgres::Pool,
 }
@@ -37,35 +32,43 @@ impl Shop {
     return result;
   }
 
-  /// Adds a new product with the given reward in coins, or update the
+  /// Adds products with the given reward in coins, or update the
   /// reward of a product if the ID already exists.
-  pub async fn update(
+  pub async fn batch_put(
     &self,
-    product_id: &str,
-    coins: i32,
+    products: &std::collections::HashMap<String, i32>,
   ) -> result::Result<()> {
-    if coins < 0 {
-      return Err(error::Error::InvalidParameter);
+    if products.is_empty() {
+      return Ok(());
     }
 
-    self
-      .m_db
-      .get()
-      .await?
-      .execute(
-        "insert into shop \
+    let mut client: deadpool_postgres::Object = self.m_db.get().await?;
+    let transaction: deadpool_postgres::Transaction<'_> =
+      client.transaction().await?;
+
+    for (id, coins) in products {
+      if *coins < 0 {
+        tracing::error!("Product coins reward '{}' cannot be negative", &id);
+        return Err(error::Error::InvalidParameter);
+      }
+      transaction
+        .execute(
+          "insert into shop \
            values ($1, $2) \
            on conflict (id) \
            do update set coins = $2",
-        &[&product_id, &coins],
-      )
-      .await?;
+          &[&id, &coins],
+        )
+        .await?;
+    }
 
-    return Ok(());
+    return Ok(transaction.commit().await?);
   }
 
   /// Returns a vector of shop products.
-  pub async fn list(&self) -> result::Result<Vec<ShopProduct>> {
+  pub async fn list(
+    &self,
+  ) -> result::Result<std::collections::HashMap<String, i32>> {
     return Ok(
       self
         .m_db
@@ -74,10 +77,7 @@ impl Shop {
         .query("select id, coins from shop", &[])
         .await?
         .into_iter()
-        .map(|row| ShopProduct {
-          product_id: row.get(0),
-          coins: row.get(1),
-        })
+        .map(|row| (row.get(0), row.get(1)))
         .collect(),
     );
   }

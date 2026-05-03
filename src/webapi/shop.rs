@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::business;
 use crate::webapi::auth;
-use crate::webapi::json_helper;
 
 #[derive(Clone)]
 pub struct ServiceState {
@@ -18,22 +17,25 @@ async fn auth(
   return auth::validate_request(&state_handle.0.leaders, request, next).await;
 }
 
-#[derive(serde::Deserialize)]
-struct ShopUpdateRequest {
-  #[serde(rename = "product-id")]
-  product_id: String,
-  coins: i32,
-}
-
-/// Register a shop product and its reward, creating the item if it
-/// does not exist. This requires an administrator.
+/**
+ * Register a shop product and its reward in coins, creating the item if it
+ * does not exist. This requires an administrator.
+ *
+ * Example:
+ * {
+ *   "product-1: 200,
+ *   "product-2: 500
+ * }
+ */
 async fn update(
   state_handle: axum::extract::State<ServiceState>,
-  axum::response::Json(request): axum::response::Json<ShopUpdateRequest>,
+  axum::response::Json(products): axum::response::Json<
+    std::collections::HashMap<String, i32>,
+  >,
 ) -> business::result::Result<()> {
   let shop: &business::shop::Shop = &state_handle.0.shop;
 
-  shop.update(&request.product_id, request.coins).await?;
+  shop.batch_put(&products).await?;
 
   return Ok(());
 }
@@ -42,9 +44,7 @@ async fn update(
 async fn list(
   state_handle: axum::extract::State<ServiceState>,
 ) -> business::result::Result<String> {
-  return Ok(serde_json::to_string(&json_helper::to_json(
-    &state_handle.0.shop.list().await?,
-  )?)?);
+  return Ok(serde_json::to_string(&state_handle.0.shop.list().await?)?);
 }
 
 /// Configure all routes for this service.
