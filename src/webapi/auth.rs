@@ -28,9 +28,7 @@ async fn valid_admin_internal(
         || (allow_init && leaders.is_in_initialization_state().await?),
     );
   } else {
-    // TODO: a log (but also check that the information is not in the
-    // default logs)
-    println!("no header");
+    tracing::error!("Missing header in request.");
   }
 
   return Ok(false);
