@@ -81,12 +81,39 @@ _kill_services()
     then
         echo -e "${yellow}[ INFO ]$reset_color Container not started, nothing to stop."
     else
-        echo -e "${yellow}[ INFO ]$reset_color Stopping container '${_container_name}'"
+        echo -e "${yellow}[ INFO ]$reset_color Stopping container '${_container_name}'."
         docker stop "$_container_name"
     fi
 }
 
 push_on_exit _kill_services
+
+# Clean up function that removes the temporary directory if the tests
+# passed and print its path if they failed.
+_rm_tmp_dir()
+{
+    if (( fail_count == 0 ))
+    then
+        rm --force --recursive "$tmp_dir"
+    else
+        echo -e "${yellow}[ INFO ]$reset_color Temporary files are in '$tmp_dir'."
+
+        # On the CI the user cannot easily connect to browse the
+        # files, so we dump them in the terminal instead for easier
+        # access.
+        if [[ "${CI:-}" = "true" ]]
+        then
+            find "$tmp_dir" -type f \
+                | while read -r f
+            do
+                echo "==== $f ===="
+                cat "$f"
+            done
+        fi
+    fi
+}
+
+push_on_exit _rm_tmp_dir
 
 # Wait for a given file to contain the given regular expression, or up
 # to a given timeout. If the timeout is reached the function dumps the
@@ -173,33 +200,6 @@ then
                     'Starting the web services' \
                     "$tmp_dir"/server.err.txt
 fi
-
-# Clean up function that removes the temporary directory if the tests
-# passed and print its path if they failed.
-_rm_tmp_dir()
-{
-    if (( fail_count == 0 ))
-    then
-        rm --force --recursive "$tmp_dir"
-    else
-        echo "Temporary files are in '$tmp_dir'."
-
-        # On the CI the user cannot easily connect to browse the
-        # files, so we dump them in the terminal instead for easier
-        # access.
-        if [[ "${CI:-}" = "true" ]]
-        then
-            find "$tmp_dir" -type f \
-                | while read -r f
-            do
-                echo "==== $f ===="
-                cat "$f"
-            done
-        fi
-    fi
-}
-
-push_on_exit _rm_tmp_dir
 
 # Run a request to the server using the default service and the
 # default certificates. Fails if the request ends with an HTTP error
