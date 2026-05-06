@@ -5,10 +5,12 @@ use thiserror::Error;
 // many error types from the sub systems.
 #[derive(Debug, Error)]
 pub enum Error {
-  #[error("database error")]
+  #[error("Database error")]
   DataBase(#[from] tokio_postgres::Error),
-  #[error("pool error")]
+  #[error("Pool error")]
   Pool(#[from] deadpool_postgres::PoolError),
-  #[error("invalid parameter")]
+  #[error("Invalid parameter")]
   InvalidParameter,
+  #[error("System error")]
+  System(#[from] rand::rngs::SysError),
 }

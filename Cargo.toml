@@ -7,8 +7,9 @@ edition = "2024"
 anyhow = "1.0"
 axum = { version = "0.8", features = ["macros"] }
 axum-server = { version = "0.8", features = ["tls-rustls"] }
+base64 = "0.22"
 deadpool-postgres = "0.14"
-rand = "0.8"
+rand = { version = "0.10", features = ["std_rng"] }
 serde_json = "1.0"
 thiserror = "2.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

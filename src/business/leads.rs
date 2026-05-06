@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::*;
-use rand::Rng;
 
 // What is called a leader (or a lead) here is an administrator. They
 // are allowed to edit anything.
@@ -13,7 +12,7 @@ pub async fn run_migration(
     // The leaders are just identified by a random token they will
     // have to pass in the authorization header.
     transaction
-      .batch_execute("create table leads (token text)")
+      .batch_execute("create table leads (token text unique)")
       .await?;
   }
 
@@ -62,16 +61,15 @@ impl Leaders {
   }
 
   pub async fn create_token(&self) -> result::Result<String> {
-    // TODO: Actually implement a random 64-symbols token.
-    let id: String = rand::thread_rng().gen_range(0..1000000).to_string();
+    let token: String = token::generate_token(32)?;
     self
       .m_db
       .get()
       .await?
-      .execute("insert into leads values ($1)", &[&id])
+      .execute("insert into leads values ($1)", &[&token])
       .await?;
 
-    return Ok(id);
+    return Ok(token);
   }
 
   pub async fn all_tokens(&self) -> result::Result<Vec<String>> {
