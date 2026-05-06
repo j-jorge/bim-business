@@ -140,7 +140,7 @@ _wait_poll_file()
     local regex="$3"
 
     # Another file to dump on error.
-    local error_file="$4"
+    local second_file="$4"
 
     echo -e "${yellow}[ INFO ]$reset_color Waiting for '$regex' in '$f'."
 
@@ -160,12 +160,12 @@ _wait_poll_file()
          >&2
     cat "$f"
 
-    if [[ -s "${error_file:-}" ]]
+    if [[ -s "${second_file:-}" ]]
     then
         echo -e \
-             "${red}[ FAIL ]$reset_color Error file:" \
+             "${red}[ FAIL ]$reset_color Second file:" \
              >&2
-        cat "$error_file"
+        cat "$second_file"
     fi
 
     fail_count=$((fail_count + 1))
@@ -184,9 +184,9 @@ docker run --rm --name "$_container_name" \
     &
 
 if _wait_poll_file 60 \
-                   "$tmp_dir"/postgres.out.txt \
-                   "ready for start up" \
-                   "$tmp_dir"/postgres.err.txt
+                   "$tmp_dir"/postgres.err.txt \
+                   "ready to accept connections" \
+                   "$tmp_dir"/postgres.out.txt
 then
     # Now that he database is up the server can start.
     "$_server_binary" \
