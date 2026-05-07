@@ -45,6 +45,7 @@ async fn migrate_database(
     business::flat_client_config::run_migration(&t, table_version).await?;
     business::leads::run_migration(&t, table_version).await?;
     business::game_features::run_migration(&t, table_version).await?;
+    business::game_servers::run_migration(&t, table_version).await?;
     business::shop::run_migration(&t, table_version).await?;
 
     // Update the schema version too, in the same transaction.
@@ -120,6 +121,8 @@ async fn main() -> Result<()> {
     std::sync::Arc::new(business::game_features::GameFeatures::new(
       pool.clone(),
     ));
+  let game_servers: std::sync::Arc<business::game_servers::GameServers> =
+    std::sync::Arc::new(business::game_servers::GameServers::new(pool.clone()));
   let shop: std::sync::Arc<business::shop::Shop> =
     std::sync::Arc::new(business::shop::Shop::new(pool));
 
@@ -142,6 +145,10 @@ async fn main() -> Result<()> {
     .nest(
       "/game-features",
       webapi::game_features::route(leads.clone(), game_features),
+    )
+    .nest(
+      "/game-servers",
+      webapi::game_servers::route(leads.clone(), game_servers),
     )
     .nest("/leads", webapi::leads::route(leads.clone()))
     .nest("/shop", webapi::shop::route(leads, shop))

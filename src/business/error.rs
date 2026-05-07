@@ -11,6 +11,8 @@ pub enum Error {
   Pool(#[from] deadpool_postgres::PoolError),
   #[error("Invalid parameter")]
   InvalidParameter,
+  #[error("Parse error")]
+  Parse(#[from] std::num::ParseIntError),
   #[error("System error")]
   System(#[from] rand::rngs::SysError),
 }
