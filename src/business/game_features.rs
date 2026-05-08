@@ -10,7 +10,7 @@ pub async fn run_migration(
   if to_version == 1 {
     transaction
       .batch_execute(
-        "create table game_features \
+        "create table game_feature \
          (id text primary key, cost_in_coins integer)",
       )
       .await?;
@@ -52,7 +52,7 @@ impl GameFeatures {
 
       transaction
         .execute(
-          "insert into game_features \
+          "insert into game_feature \
            values ($1, $2) \
            on conflict (id) \
            do update set cost_in_coins = $2",
@@ -74,7 +74,7 @@ impl GameFeatures {
         .m_db
         .get()
         .await?
-        .query("select id, cost_in_coins from game_features", &[])
+        .query("select id, cost_in_coins from game_feature", &[])
         .await?
         .into_iter()
         .map(|row| (row.get(0), row.get(1)))
