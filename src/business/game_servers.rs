@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+use super::result::OrBadParameter;
 use super::*;
 use std::str::FromStr;
 
@@ -151,7 +152,7 @@ impl GameServers {
       .rsplit_once(':')
       .ok_or(error::Error::InvalidParameter)?;
 
-    let _ = u16::from_str(port_str)?;
+    let _ = u16::from_str(port_str).or_bad_parameter()?;
 
     // The limit on the length of the host is arbitrary.
     if std::net::IpAddr::from_str(host_str).is_err() && host_str.len() > 255 {

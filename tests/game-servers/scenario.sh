@@ -135,7 +135,7 @@ expect_post_error 500 game-servers/keep-alive \
                "protocol_version": 24
              }'
 # This one has an invalid host.
-expect_post_error 500 game-servers/keep-alive \
+expect_post_error 400 game-servers/keep-alive \
             -H "Content-Type: application/json" \
             --data \
             '{
