@@ -8,7 +8,7 @@ pub enum Error {
   #[error("Internal error")]
   Internal,
   #[error("Invalid parameter")]
-  InvalidParameter,
+  BadParameter,
 }
 
 impl From<tokio_postgres::Error> for Error {

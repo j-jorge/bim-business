@@ -123,7 +123,7 @@ impl GameServers {
       .chars()
       .any(|c| !(c.is_ascii_alphanumeric() || c == '_' || c == '-'))
     {
-      return Err(error::Error::InvalidParameter);
+      return Err(error::Error::BadParameter);
     }
 
     let now: std::time::SystemTime = std::time::SystemTime::now();
@@ -148,15 +148,14 @@ impl GameServers {
   ) -> result::Result<std::time::Duration> {
     // Validate the syntax of the host string. It must be ip:port or
     // domain:port.
-    let (host_str, port_str) = host
-      .rsplit_once(':')
-      .ok_or(error::Error::InvalidParameter)?;
+    let (host_str, port_str) =
+      host.rsplit_once(':').ok_or(error::Error::BadParameter)?;
 
     let _ = u16::from_str(port_str).or_bad_parameter()?;
 
     // The limit on the length of the host is arbitrary.
     if std::net::IpAddr::from_str(host_str).is_err() && host_str.len() > 255 {
-      return Err(error::Error::InvalidParameter);
+      return Err(error::Error::BadParameter);
     }
 
     // Retrieve the server id from its token.

@@ -47,7 +47,7 @@ impl GameFeatures {
     for (id, coins) in features {
       if *coins < 0 {
         tracing::error!("Feature cost '{}' cannot be negative", &id);
-        return Err(error::Error::InvalidParameter);
+        return Err(error::Error::BadParameter);
       }
 
       transaction

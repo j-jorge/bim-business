@@ -133,7 +133,7 @@ impl FlatClientConfig {
           });
         }
         _ => {
-          return Err(error::Error::InvalidParameter);
+          return Err(error::Error::BadParameter);
         }
       }
     }

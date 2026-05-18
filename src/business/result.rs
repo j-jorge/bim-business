@@ -10,7 +10,7 @@ pub trait OrBadParameter<T> {
 }
 
 // Convert any std::result::Result<T, E> into a Result<E>. If the
-// result contains an error, an Err(error::Error::InvalidParameter) is
+// result contains an error, an Err(error::Error::BadParameter) is
 // returned. Otherwise returns the value stored in the result.
 impl<T, E: std::fmt::Display + std::fmt::Debug> OrBadParameter<T>
   for std::result::Result<T, E>
@@ -18,7 +18,7 @@ impl<T, E: std::fmt::Display + std::fmt::Debug> OrBadParameter<T>
   fn or_bad_parameter(self) -> Result<T> {
     if let Err(e) = self {
       tracing::error!("{}", e);
-      return Err(error::Error::InvalidParameter);
+      return Err(error::Error::BadParameter);
     }
 
     return Ok(self.unwrap());

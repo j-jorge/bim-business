@@ -49,7 +49,7 @@ impl Shop {
     for (id, coins) in products {
       if *coins < 0 {
         tracing::error!("Product coins reward '{}' cannot be negative", &id);
-        return Err(error::Error::InvalidParameter);
+        return Err(error::Error::BadParameter);
       }
       transaction
         .execute(
