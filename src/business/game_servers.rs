@@ -81,7 +81,7 @@ impl Internals {
 }
 
 pub struct GameServers {
-  m_db: deadpool_postgres::Pool,
+  m_db: db::Wrapper,
   m_internals: std::sync::Mutex<Internals>,
 }
 
@@ -89,8 +89,8 @@ impl GameServers {
   pub fn new(db: deadpool_postgres::Pool) -> GameServers {
     let default_clean_up_delay = std::time::Duration::from_mins(5);
 
-    let result = GameServers {
-      m_db: db,
+    return GameServers {
+      m_db: db::Wrapper::new(db),
       m_internals: std::sync::Mutex::new(Internals {
         m_clean_up_delay: default_clean_up_delay,
         m_date_for_next_clean_up: std::time::Instant::now()
@@ -98,8 +98,6 @@ impl GameServers {
         m_online_servers: vec![],
       }),
     };
-
-    return result;
   }
 
   pub fn set_clean_up_delay(&self, delay: std::time::Duration) {
@@ -131,9 +129,7 @@ impl GameServers {
     let token: String = token::generate_token(32)?;
     self
       .m_db
-      .get()
-      .await?
-      .execute(
+      .execute_p(
         "insert into game_server values ($1, $2, $3, $4, $5)",
         &[&id, &token, &description, &now, &std::time::UNIX_EPOCH],
       )
@@ -165,9 +161,7 @@ impl GameServers {
     // Retrieve the server id from its token.
     let id: String = self
       .m_db
-      .get()
-      .await?
-      .query_one("select id from game_server where token = $1", &[&token])
+      .query_one_p("select id from game_server where token = $1", &[&token])
       .await?
       .get(0);
 
@@ -208,12 +202,9 @@ impl GameServers {
   pub async fn all(&self) -> result::Result<Vec<GameServerInfo>> {
     let rows: Vec<tokio_postgres::Row> = self
       .m_db
-      .get()
-      .await?
       .query(
         "select id, token, description, registration_date, last_seen \
          from game_server",
-        &[],
       )
       .await?;
 

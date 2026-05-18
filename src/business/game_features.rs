@@ -20,14 +20,14 @@ pub async fn run_migration(
 }
 
 pub struct GameFeatures {
-  m_db: deadpool_postgres::Pool,
+  m_db: db::Wrapper,
 }
 
 impl GameFeatures {
   pub fn new(db: deadpool_postgres::Pool) -> GameFeatures {
-    let result = GameFeatures { m_db: db };
-
-    return result;
+    return GameFeatures {
+      m_db: db::Wrapper::new(db),
+    };
   }
 
   /// Adds game features with the given cost in coins, or update the
@@ -40,9 +40,9 @@ impl GameFeatures {
       return Ok(());
     }
 
-    let mut client: deadpool_postgres::Object = self.m_db.get().await?;
+    let mut client: deadpool_postgres::Object = self.m_db.client().await?;
     let transaction: deadpool_postgres::Transaction<'_> =
-      client.transaction().await?;
+      db::transaction(&mut client).await?;
 
     for (id, coins) in features {
       if *coins < 0 {
@@ -69,16 +69,11 @@ impl GameFeatures {
   pub async fn list(
     &self,
   ) -> result::Result<std::collections::HashMap<String, i32>> {
-    return Ok(
-      self
-        .m_db
-        .get()
-        .await?
-        .query("select id, cost_in_coins from game_feature", &[])
-        .await?
-        .into_iter()
-        .map(|row| (row.get(0), row.get(1)))
-        .collect(),
-    );
+    return self
+      .m_db
+      .collect("select id, cost_in_coins from game_feature", |row| {
+        (row.get(0), row.get(1))
+      })
+      .await;
   }
 }

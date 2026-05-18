@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+mod db;
 mod token;
 
 pub mod error;

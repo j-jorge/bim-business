@@ -24,7 +24,7 @@ pub async fn run_migration(
 }
 
 pub struct FlatClientConfig {
-  m_db: deadpool_postgres::Pool,
+  m_db: db::Wrapper,
 }
 
 pub enum Value {
@@ -45,14 +45,15 @@ enum DbValueType {
 
 impl FlatClientConfig {
   pub fn new(db: deadpool_postgres::Pool) -> FlatClientConfig {
-    let result = FlatClientConfig { m_db: db };
-
-    return result;
+    return FlatClientConfig {
+      m_db: db::Wrapper::new(db),
+    };
   }
 
   pub async fn batch_put(&self, entries: &[Entry]) -> result::Result<()> {
-    let mut client: deadpool_postgres::Object = self.m_db.get().await?;
-    let t: deadpool_postgres::Transaction<'_> = client.transaction().await?;
+    let mut client: deadpool_postgres::Object = self.m_db.client().await?;
+    let t: deadpool_postgres::Transaction<'_> =
+      db::transaction(&mut client).await?;
 
     for entry in entries {
       match &entry.value {
@@ -96,9 +97,9 @@ impl FlatClientConfig {
   }
 
   pub async fn batch_erase(&self, keys: &[String]) -> result::Result<()> {
-    let mut client: deadpool_postgres::Object = self.m_db.get().await?;
+    let mut client: deadpool_postgres::Object = self.m_db.client().await?;
     let transaction: deadpool_postgres::Transaction<'_> =
-      client.transaction().await?;
+      db::transaction(&mut client).await?;
 
     for key in keys {
       transaction
@@ -139,15 +140,10 @@ impl FlatClientConfig {
 
     return self
       .m_db
-      .get()
-      .await?
-      .query(
+      .collect(
         "select key, type, int64_value, text_value from flat_client_config",
-        &[],
+        row_to_entry,
       )
-      .await?
-      .into_iter()
-      .map(row_to_entry)
-      .collect();
+      .await?;
   }
 }
