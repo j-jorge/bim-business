@@ -139,19 +139,22 @@ async fn main() -> Result<()> {
   // Register the web services.
   let router = axum::Router::new()
     .nest(
-      "/flat-client-config",
-      webapi::flat_client_config::route(leads.clone(), flat_client_config),
+      "/admin/flat-client-config",
+      webapi::admin::flat_client_config::route(
+        leads.clone(),
+        flat_client_config,
+      ),
     )
     .nest(
-      "/game-features",
-      webapi::game_features::route(leads.clone(), game_features),
+      "/admin/game-features",
+      webapi::admin::game_features::route(leads.clone(), game_features),
     )
     .nest(
-      "/game-servers",
-      webapi::game_servers::route(leads.clone(), game_servers),
+      "/admin/game-servers",
+      webapi::admin::game_servers::route(leads.clone(), game_servers),
     )
-    .nest("/leads", webapi::leads::route(leads.clone()))
-    .nest("/shop", webapi::shop::route(leads, shop))
+    .nest("/admin/leads", webapi::admin::leads::route(leads.clone()))
+    .nest("/admin/shop", webapi::admin::shop::route(leads, shop))
     .layer(tower_http::trace::TraceLayer::new_for_http());
 
   // And finally, launch the server.

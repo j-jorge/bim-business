@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::business;
-use crate::webapi::auth;
+use crate::webapi::admin::auth;
 
 #[derive(Clone)]
 pub struct ServiceState {
