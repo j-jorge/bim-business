@@ -234,4 +234,22 @@ impl GameServers {
     }
     return Ok(result);
   }
+
+  /// List available game servers supporting the given protocol.
+  pub fn online_hosts_for_protocol(
+    &self,
+    protocol_version: u64,
+  ) -> result::Result<Vec<String>> {
+    let internals = &mut self.m_internals.lock()?;
+    internals.remove_dead_servers();
+
+    return Ok(
+      internals
+        .m_online_servers
+        .iter()
+        .filter(|s| s.protocol_version == protocol_version)
+        .map(|s| s.host.clone())
+        .collect(),
+    );
+  }
 }

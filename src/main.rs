@@ -142,19 +142,31 @@ async fn main() -> Result<()> {
       "/admin/flat-client-config",
       webapi::admin::flat_client_config::route(
         leads.clone(),
-        flat_client_config,
+        flat_client_config.clone(),
       ),
     )
     .nest(
       "/admin/game-features",
-      webapi::admin::game_features::route(leads.clone(), game_features),
+      webapi::admin::game_features::route(leads.clone(), game_features.clone()),
     )
     .nest(
       "/admin/game-servers",
-      webapi::admin::game_servers::route(leads.clone(), game_servers),
+      webapi::admin::game_servers::route(leads.clone(), game_servers.clone()),
     )
     .nest("/admin/leads", webapi::admin::leads::route(leads.clone()))
-    .nest("/admin/shop", webapi::admin::shop::route(leads, shop))
+    .nest(
+      "/admin/shop",
+      webapi::admin::shop::route(leads, shop.clone()),
+    )
+    .nest(
+      "/client/config",
+      webapi::client::config::route(
+        flat_client_config,
+        game_features,
+        game_servers,
+        shop,
+      ),
+    )
     .layer(tower_http::trace::TraceLayer::new_for_http());
 
   // And finally, launch the server.

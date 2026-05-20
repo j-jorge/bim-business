@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::business;
+use crate::webapi;
 use crate::webapi::admin::auth;
 
 use axum::response::IntoResponse;
@@ -101,16 +102,7 @@ async fn list(
   let entries: Vec<business::flat_client_config::Entry> =
     flat_config.all_entries().await?;
 
-  for entry in &entries {
-    match &entry.value {
-      business::flat_client_config::Value::Int64(v) => {
-        m.insert(&entry.key, serde_json::to_value(v)?)
-      }
-      business::flat_client_config::Value::Text(v) => {
-        m.insert(&entry.key, serde_json::to_value(v)?)
-      }
-    };
-  }
+  webapi::flat_client_config::collect(&mut m, &entries)?;
 
   return Ok(serde_json::to_string(&m)?);
 }
