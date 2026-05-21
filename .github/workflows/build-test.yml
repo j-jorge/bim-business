@@ -40,4 +40,4 @@ jobs:
         run: >
           ./create-certificates.sh ;
           ./tests/run-tests.sh
-          --binary target/${{matrix.build_type}}/axum-crud-test
+          --binary target/${{matrix.build_type}}/bim-business
