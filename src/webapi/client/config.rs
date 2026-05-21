@@ -41,7 +41,7 @@ async fn client_config(
       &state_handle.0.game_features;
 
     config.insert(
-      "game-feature-prices".to_string(),
+      "game_feature_prices".to_string(),
       serde_json::to_value(game_features.list().await?)?,
     );
   }
@@ -51,7 +51,7 @@ async fn client_config(
       &state_handle.0.game_servers;
 
     config.insert(
-      "game-servers".to_string(),
+      "game_servers".to_string(),
       serde_json::to_value(
         game_servers
           .online_hosts_for_protocol(request.game_server_protocol_version)?,

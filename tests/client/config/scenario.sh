@@ -91,9 +91,9 @@ expect_post client/config \
 expect_json_eq \
     '{
        "misc": {"prop-1": 123, "prop-2": "bbb"},
-       "game-feature-prices": {"feature-1": 11, "feature-2": 22},
+       "game_feature_prices": {"feature-1": 11, "feature-2": 22},
        "shop": {"product-1": 100, "product-2": 200},
-       "game-servers": [ "1.1.1.1:1111" ]
+       "game_servers": [ "1.1.1.1:1111" ]
      }' \
          "$tmp_dir"/config-1.json
 
@@ -107,9 +107,9 @@ expect_post client/config \
 expect_json_eq \
     '{
        "misc": {"prop-1": 123, "prop-2": "bbb"},
-       "game-feature-prices": {"feature-1": 11, "feature-2": 22},
+       "game_feature_prices": {"feature-1": 11, "feature-2": 22},
        "shop": {"product-1": 100, "product-2": 200},
-       "game-servers": [ "2.2.2.2:2222" ]
+       "game_servers": [ "2.2.2.2:2222" ]
      }' \
          "$tmp_dir"/config-2.json
 
@@ -123,8 +123,8 @@ expect_post client/config \
 expect_json_eq \
     '{
        "misc": {"prop-1": 123, "prop-2": "bbb"},
-       "game-feature-prices": {"feature-1": 11, "feature-2": 22},
+       "game_feature_prices": {"feature-1": 11, "feature-2": 22},
        "shop": {"product-1": 100, "product-2": 200},
-       "game-servers": []
+       "game_servers": []
      }' \
          "$tmp_dir"/config-3.json
