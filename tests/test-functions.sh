@@ -4,6 +4,9 @@
 # this script to get access to the test functions.
 #
 
+_db_port=5432
+_app_port=4209
+
 if printf '%s\n' "$@" | grep --quiet '^\(-h\|--help\)$'
 then
     cat <<EOF
@@ -12,6 +15,10 @@ Usage: "$@" OPTIONS
 Where OPTIONS are:
   --binary PATH
      Path to the program to test. Required.
+  --db-port PORT
+     Port on which Postgres will listen. Default is $_db_port.
+  --port PORT
+     Port on which the app will listen. Default is $_app_port.
   -h, --help
      Display this message and exit.
 EOF
@@ -36,6 +43,26 @@ do
             _server_binary="$1"
             shift
             ;;
+        --db-port)
+            if [[ $# -eq 0 ]]
+            then
+                echo "Missing value for --db-port." >&2
+                exit 1
+            fi
+
+            _db_port="$1"
+            shift
+            ;;
+        --port)
+            if [[ $# -eq 0 ]]
+            then
+                echo "Missing value for --port." >&2
+                exit 1
+            fi
+
+            _port="$1"
+            shift
+            ;;
         *)
             echo "Unsupported argument '$arg'." >&2
             exit 1
@@ -56,11 +83,13 @@ _test_functions_script_dir="$(readlink --canonicalize \
 # shellcheck source-path=SCRIPTDIR
 . "$_test_functions_script_dir"/testlib.sh
 
+_certificates_dir="$_test_functions_script_dir"/../certificates/
+
 # Temporary directory usable by the tests.
 tmp_dir="$(mktemp --directory)"
 
 # This is the service exposed when _server_binary is started.
-_service="https://localhost:3000"
+_service="https://localhost:$_app_port"
 
 _kill_services()
 {
@@ -190,11 +219,17 @@ _wait_poll_file()
     return 1
 }
 
+_db_user=postgres_user
+_db_password=postgres_password
+_db_name=test-db
+
 # Start the database and wait for it to be up and ready.
 _container_name="test-$(echo -n "$test_name" | tr -c 'a-zA-Z0-9_.\-' '.')"
 docker run --rm --name "$_container_name" \
-       --env POSTGRES_PASSWORD=postgres \
-       --publish 5432:5432 \
+       --env POSTGRES_USER="$_db_user" \
+       --env POSTGRES_PASSWORD="$_db_password" \
+       --env POSTGRES_DB="$_db_name" \
+       --publish 5432:"$_db_port" \
        postgres:18 \
        > "$tmp_dir"/postgres.out.txt \
        2> "$tmp_dir"/postgres.err.txt \
@@ -205,8 +240,21 @@ if _wait_poll_file 60 \
                    "ready to accept connections" \
                    "$tmp_dir"/postgres.out.txt
 then
+    cat > "$tmp_dir"/secrets.json <<EOF
+{
+  "db_password": "$_db_password"
+}
+EOF
+
     # Now that he database is up the server can start.
     "$_server_binary" \
+        --port "$_app_port" \
+        --public-certificate "$_certificates_dir"/testing.crt \
+        --certificate-private-key "$_certificates_dir"/testing.key \
+        --db-port "$_db_port" \
+        --db-name "$_db_name" \
+        --db-user "$_db_user" \
+        --secrets "$tmp_dir"/secrets.json \
         > "$tmp_dir"/server.out.txt \
         2> "$tmp_dir"/server.err.txt \
         &
@@ -227,7 +275,7 @@ _do_curl()
     shift
 
     curl --silent --show-error --fail --cacert \
-         "$_test_functions_script_dir"/../certificates/localhost.crt \
+         "$_certificates_dir"/testing.crt \
          "$resource" \
          "$@"
 }

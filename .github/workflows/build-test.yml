@@ -38,6 +38,6 @@ jobs:
           cargo test --locked $build_arg
       - name: "End to end tests"
         run: >
-          ./create-certificates.sh ;
+          ./create-certificates.sh localhost testing ;
           ./tests/run-tests.sh
           --binary target/${{matrix.build_type}}/bim-business
