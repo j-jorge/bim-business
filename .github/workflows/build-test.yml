@@ -39,4 +39,4 @@ jobs:
       - name: "End to end tests"
         run: >
           ./tests/run-tests.sh
-          --binary target/${{matrix.build_type}}/bim-business
+          --build-type ${{matrix.build_type}}

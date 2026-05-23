@@ -1,0 +1,9 @@
+FROM postgres:18
+
+ARG UID
+ARG GID
+
+# Map postgres' user and group to those of the user who launched the
+# script. The user owns the server, thus the user owns the data.
+RUN groupmod --gid $GID postgres \
+    && usermod --uid $UID --gid $GID postgres

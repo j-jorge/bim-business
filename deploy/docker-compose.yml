@@ -1,0 +1,56 @@
+networks:
+  postgres_network:
+    driver: bridge
+services:
+  db:
+    container_name: bim-business-db-${BIM_TAG}
+    build:
+      context: .
+      dockerfile: dockerfile.db
+      args:
+        UID: ${UID}
+        GID: ${GID}
+    environment:
+      POSTGRES_USER: ${BIM_DB_USER}
+      POSTGRES_PASSWORD: ${BIM_DB_PASSWORD}
+      POSTGRES_DB: ${BIM_DB_NAME}
+      PGDATA: /opt/postgres/pgdata
+    volumes:
+      - ./db/pgdata:/opt/postgres/pgdata
+      # Keep a folder attached to the host in case we want to log in
+      # the image and output something for the host.
+      - ./db/host:/opt/postgres/host
+    networks:
+      - postgres_network
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 5
+  bim:
+    container_name: bim-business-app-${BIM_TAG}
+    depends_on:
+      - db
+    image: debian:forky
+    ports:
+      - ${BIM_PORT}:4209
+    user: ${UID}:${GID}
+    volumes:
+      - ./bim/bin:/opt/bim/bin:ro
+      - ./bim/etc:/opt/bim/etc:ro
+      - ./bim/host:/opt/bim/host
+    networks:
+      - postgres_network
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 5
+    # The value passed to --db-host below is the name of the container
+    # running Postgres.
+    command: >
+      /opt/bim/bin/bim-business-launcher.sh
+      --port 4209
+      --db-host db
+      --db-port 5432
+      --db-name ${BIM_DB_NAME}
+      --db-user ${BIM_DB_USER}
+      --secrets /opt/bim/etc/secrets.json

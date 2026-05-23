@@ -5,7 +5,7 @@
 #
 
 _db_port=5432
-_app_port=4209
+app_port=4209
 
 if printf '%s\n' "$@" | grep --quiet '^\(-h\|--help\)$'
 then
@@ -13,12 +13,12 @@ then
 Usage: "$@" OPTIONS
 
 Where OPTIONS are:
-  --binary PATH
-     Path to the program to test. Required.
+  --build-type [ debug | release ]
+     The build to test. Required.
   --db-port PORT
      Port on which Postgres will listen. Default is $_db_port.
   --port PORT
-     Port on which the app will listen. Default is $_app_port.
+     Port on which the app will listen. Default is $app_port.
   -h, --help
      Display this message and exit.
 EOF
@@ -33,14 +33,14 @@ do
     shift
 
     case "$arg" in
-        --binary)
+        --build-type)
             if [[ $# -eq 0 ]]
             then
-                echo "Missing value for --binary." >&2
+                echo "Missing value for --build-type." >&2
                 exit 1
             fi
 
-            _server_binary="$1"
+            build_type="$1"
             shift
             ;;
         --db-port)
@@ -60,7 +60,7 @@ do
                 exit 1
             fi
 
-            _port="$1"
+            app_port="$1"
             shift
             ;;
         *)
@@ -70,15 +70,17 @@ do
     esac
 done
 
-if [[ "${_server_binary:-}" = "" ]]
+if [[ "${build_type:-}" = "" ]]
 then
-    echo "--binary is required."
+    echo "--build-type is required."
     exit 1
 fi
 
 _test_functions_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
 _test_functions_script_dir="$(readlink --canonicalize \
                                       "$_test_functions_script_dir")"
+repo_root="$(cd "$_test_functions_script_dir"/../; pwd)"
+_server_binary="$repo_root"/target/"$build_type"/bim-business
 
 # shellcheck source-path=SCRIPTDIR
 . "$_test_functions_script_dir"/testlib.sh
@@ -87,10 +89,12 @@ _test_functions_script_dir="$(readlink --canonicalize \
 tmp_dir="$(mktemp --directory)"
 
 # This is the service exposed when _server_binary is started.
-_service="http://localhost:$_app_port"
+_service="http://localhost:$app_port"
 
 _kill_services()
 {
+    exit_code=$?
+
     if [[ "${_server_pid:-}" = "" ]]
     then
         info "Server not started, no process to kill."
@@ -147,7 +151,7 @@ push_on_exit _rm_tmp_dir
 # scripts even though fail_count is zero. Without this function the
 # other trapped functions would override the exit code and the calling
 # script would not see the problem.
-_count_failure_on_script_error()
+count_failure_on_script_error()
 {
     local exit_code=$?
 
@@ -157,7 +161,7 @@ _count_failure_on_script_error()
     fi
 }
 
-push_on_exit _count_failure_on_script_error
+push_on_exit count_failure_on_script_error
 
 # Wait for a given file to contain the given regular expression, or up
 # to a given timeout. If the timeout is reached the function dumps the
@@ -188,7 +192,7 @@ _wait_poll_file()
 
     while (( seconds >= 1 ))
     do
-        if grep --quiet "$regex" "$f"
+        if [[ -f "$f" ]] && grep --quiet "$regex" "$f"
         then
             return 0
         fi
@@ -253,7 +257,7 @@ EOF
 
         # Now that he database is up the server can start.
         "$_server_binary" \
-            --port "$_app_port" \
+            --port "$app_port" \
             --db-port "$_db_port" \
             --db-name "$_db_name" \
             --db-user "$_db_user" \
@@ -331,7 +335,7 @@ expect_get()
 # that the request succeeds.
 expect_post()
 {
-    expect_true _do_curl "$@" -X POST
+    expect_true _do_curl "$@" --request POST
 }
 
 # Create an HTTP GET request with the provided arguments, and check
@@ -347,5 +351,5 @@ expect_get_error()
 # error code, the rest is going to be passed to curl.
 expect_post_error()
 {
-    _expect_curl_error "$@" -X POST
+    _expect_curl_error "$@" --request POST
 }
