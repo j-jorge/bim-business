@@ -218,7 +218,7 @@ async fn main() -> Result<()> {
 
   // And finally, launch the server.
   let address = std::net::SocketAddr::new(
-    std::net::IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
+    std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
     arguments.port,
   );
   let service_future = axum_server::bind_rustls(address, certificates)
