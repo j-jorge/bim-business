@@ -95,9 +95,9 @@ _kill_services()
 {
     if [[ "${_server_pid:-}" = "" ]]
     then
-        echo -e "${yellow}[ INFO ]$reset_color Server not started, no process to kill."
+        info "Server not started, no process to kill."
     else
-        echo -e "${yellow}[ INFO ]$reset_color Killing server, pid='${_server_pid}'."
+        info "Killing server, pid='${_server_pid}'."
 
         kill -15 "$_server_pid" 2>/dev/null || true
 
@@ -108,9 +108,9 @@ _kill_services()
 
     if [[ "${_container_name:-}" = "" ]]
     then
-        echo -e "${yellow}[ INFO ]$reset_color Container not started, nothing to stop."
+        info "Container not started, nothing to stop."
     else
-        echo -e "${yellow}[ INFO ]$reset_color Stopping container '${_container_name}'."
+        info "Stopping container '${_container_name}'."
         docker stop "$_container_name"
     fi
 }
@@ -125,7 +125,7 @@ _rm_tmp_dir()
     then
         rm --force --recursive "$tmp_dir"
     else
-        echo -e "${yellow}[ INFO ]$reset_color Temporary files are in '$tmp_dir'."
+        info "Temporary files are in '$tmp_dir'."
 
         # On the CI the user cannot easily connect to browse the
         # files, so we dump them in the terminal instead for easier
@@ -170,9 +170,7 @@ _wait_poll_file()
     if (( $# != 4 ))
     then
         fail_count=$((fail_count + 1))
-        echo -e \
-             "${red}[ FAIL ]$reset_color Expected four arguments, got $#:" \
-             "$@"
+        fail "Expected four arguments, got $#:" "$@"
         return 1
     fi
 
@@ -188,7 +186,7 @@ _wait_poll_file()
     # Another file to dump on error.
     local second_file="$4"
 
-    echo -e "${yellow}[ INFO ]$reset_color Waiting for '$regex' in '$f'."
+    info "Waiting for '$regex' in '$f'."
 
     while (( seconds >= 1 ))
     do
@@ -201,16 +199,12 @@ _wait_poll_file()
         sleep 1
     done
 
-    echo -e \
-         "${red}[ FAIL ]$reset_color Could not find pattern '$regex' in '$f':" \
-         >&2
+    fail "Could not find pattern '$regex' in '$f':"
     cat "$f"
 
     if [[ -s "${second_file:-}" ]]
     then
-        echo -e \
-             "${red}[ FAIL ]$reset_color Second file:" \
-             >&2
+        fail "Second file:"
         cat "$second_file"
     fi
 
@@ -303,16 +297,16 @@ _expect_curl_error()
 
         if [[ "$expected" = "$actual" ]]
         then
-            echo -e "${green}[ PASS ]$reset_color Error code $expected for" "$@"
+            pass "Error code $expected for" "$@"
         else
             fail_count=$((fail_count + 1))
-            echo -e "${red}[ FAIL ]$reset_color Wrong error code."
+            fail "Wrong error code."
             echo "Expected: $expected"
             echo "  Actual: $actual"
         fi
     else
         fail_count=$((fail_count + 1))
-        echo -e "${red}[ FAIL ]$reset_color Wrong error kind."
+        fail "Wrong error kind."
         echo "Expected: $expected"
         echo "  Actual: $(cat "$tmp")"
     fi

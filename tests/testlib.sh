@@ -17,23 +17,76 @@ test_name="${test_name/$_testlib_script_dir\//}"
 # test suite ends.
 fail_count=0
 
-echo -e "${green}[======]$reset_color"
-echo -e "${green}[      ]$reset_color Starting $test_name"
+_print_line_header()
+{
+    local header_size=6
+
+    printf '['
+
+    if [[ ${#1} -eq 1 ]]
+    then
+        for _ in {1..6}
+        do
+            printf '%s' "$1"
+        done
+    elif [[ ${#1} -le "$header_size" ]]
+    then
+        local left=$(( (header_size - ${#1}) / 2 ))
+        printf '%*s%s%*s' "$left" "" "$1" $((header_size - left - ${#1})) ""
+    else
+        printf '%s' "$1"
+    fi
+
+    printf ']'
+}
+
+_message()
+{
+    echo -e -n "$1"
+    _print_line_header "$2"
+    shift 2
+
+    echo -e "$reset_color" "$@"
+}
+
+pass()
+{
+    _message "$green" PASS "$@"
+}
+
+empty_ok()
+{
+    _message "$green" "" "$@"
+
+}
+
+fail()
+{
+    _message "$red" FAIL "$@"
+}
+
+info()
+{
+    _message "$yellow" INFO "$@"
+}
+
+_message "$green" =
+empty_ok "Starting $test_name"
 
 _print_results()
 {
     if (( $? != 0 ))
     then
-        echo -e "${red}[ FAIL ]$reset_color $test_name: script failed"
+        fail "$test_name: script failed"
         fail_count=$((fail_count + 1))
         return 1
     elif (( fail_count == 0 ))
     then
-        echo -e "${green}[------]$reset_color"
-        echo -e "${green}[ PASS ]$reset_color $test_name"
+        _message "$green" -
+        pass "$test_name"
     else
-        echo -e "${red}[------]$reset_color"
-        echo -e "${red}[ FAIL ]$reset_color $test_name"
+        _message "$red" -
+        fail "$test_name"
         return 1
     fi
 }
@@ -79,10 +132,10 @@ expect_true()
     if (( e != 0 ))
     then
         fail_count=$((fail_count + 1))
-        echo -e "${red}[ FAIL ]$reset_color" "$@"
-        echo "Command should have exited normally. Exit code is $e."
+        fail "$@"
+        fail "Command should have exited normally. Exit code is $e."
     else
-        echo -e "${green}[ PASS ]$reset_color" "$@"
+        pass "$@"
     fi
 }
 
@@ -94,10 +147,10 @@ expect_false()
     if "$@"
     then
         fail_count=$((fail_count + 1))
-        echo -e "${red}[ FAIL ]$reset_color" "$@"
-        echo "Command should have failed."
+        fail "$@"
+        fail "Command should have failed."
     else
-        echo -e "${green}[ PASS ]$reset_color" "!" "$@"
+        pass  "!" "$@"
     fi
 }
 
@@ -109,18 +162,16 @@ expect_eq()
     if (( $# != 2 ))
     then
         fail_count=$((fail_count + 1))
-        echo -e \
-             "${red}[ FAIL ]$reset_color Expected two arguments, got $#:" \
-             "$@"
+        fail "Expected two arguments, got $#:" "$@"
         return
     fi
 
     if [[ "$1" = "$2" ]]
     then
-        echo -e "${green}[ PASS ]$reset_color '$1' = '$2'."
+        pass "'$1' = '$2'."
     else
         fail_count=$((fail_count + 1))
-        echo -e "${red}[ FAIL ]$reset_color '$1' is different from '$2'."
+        fail  "'$1' is different from '$2'."
     fi
 }
 
@@ -132,18 +183,16 @@ expect_ne()
     if (( $# != 2 ))
     then
         fail_count=$((fail_count + 1))
-        echo -e \
-             "${red}[ FAIL ]$reset_color Expected two arguments, got $#:" \
-             "$@"
+        fail "Expected two arguments, got $#:" "$@"
         return
     fi
 
     if [[ "$1" != "$2" ]]
     then
-        echo -e "${green}[ PASS ]$reset_color '$2' != '$1'."
+        pass "'$2' != '$1'."
     else
         fail_count=$((fail_count + 1))
-        echo -e "${red}[ FAIL ]$reset_color '$2' != '$1'."
+        fail "'$2' != '$1'."
     fi
 }
 
@@ -159,9 +208,7 @@ expect_eval_eq()
     if (( $# != 2 ))
     then
         fail_count=$((fail_count + 1))
-        echo -e \
-             "${red}[ FAIL ]$reset_color Expected two arguments, got $#:" \
-             "$@"
+        fail "Expected two arguments, got $#:" "$@"
         return
     fi
 
@@ -173,10 +220,10 @@ expect_eval_eq()
 
     if [[ "$expected" = "$actual" ]]
     then
-        echo -e "${green}[ PASS ]$reset_color '$2' = '$1'."
+        pass "'$2' = '$1'."
     else
         fail_count=$((fail_count + 1))
-        echo -e "${red}[ FAIL ]$reset_color '$2' = '$1'."
+        fail "'$2' = '$1'."
         echo "Expected: $expected"
         echo "  Actual: $actual"
     fi
@@ -190,9 +237,7 @@ expect_json_eq()
     if (( $# != 2 ))
     then
         fail_count=$((fail_count + 1))
-        echo -e \
-             "${red}[ FAIL ]$reset_color Expected two arguments, got $#:" \
-             "$@"
+        fail "Expected two arguments, got $#:" "$@"
         return
     fi
 
@@ -206,10 +251,10 @@ expect_json_eq()
 
     if [[ "$expected" = "$actual" ]]
     then
-        echo -e "${green}[ PASS ]$reset_color json_eq '$1' = '$2'."
+        pass "json_eq '$1' = '$2'."
     else
         fail_count=$((fail_count + 1))
-        echo -e "${red}[ FAIL ]$reset_color json_eq '$2'."
+        fail "json_eq '$2'."
         echo "Expected: $expected"
         echo "  Actual: $actual"
     fi
