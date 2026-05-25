@@ -6,6 +6,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
 
 # shellcheck source-path=SCRIPTDIR
 . "$script_dir"/../../test-functions.sh
+start_server
 
 # Create an administrator.
 expect_post admin/leads/create -H "Authorization: _" \

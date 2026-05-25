@@ -6,6 +6,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
 
 # shellcheck source-path=SCRIPTDIR
 . "$script_dir"/../../test-functions.sh
+start_server
 
 # No authorization header: the request should fail.
 expect_get_error 401 admin/leads/list

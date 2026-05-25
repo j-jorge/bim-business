@@ -213,52 +213,65 @@ _wait_poll_file()
     return 1
 }
 
-_db_user=postgres_user
-_db_password=postgres_password
-_db_name=test-db
+wait_server_ready()
+{
+    local stdout="$1"
+    local stderr="$2"
 
-# Start the database and wait for it to be up and ready.
-_container_name="test-$(echo -n "$test_name" | tr -c 'a-zA-Z0-9_.\-' '.')"
-docker run --rm --name "$_container_name" \
-       --env POSTGRES_USER="$_db_user" \
-       --env POSTGRES_PASSWORD="$_db_password" \
-       --env POSTGRES_DB="$_db_name" \
-       --publish 5432:"$_db_port" \
-       postgres:18 \
-       > "$tmp_dir"/postgres.out.txt \
-       2> "$tmp_dir"/postgres.err.txt \
-    &
+    _wait_poll_file 60 \
+                    "$stdout" \
+                    'Starting the web services' \
+                    "$stderr"
+}
 
-if _wait_poll_file 60 \
-                   "$tmp_dir"/postgres.err.txt \
-                   "ready to accept connections" \
-                   "$tmp_dir"/postgres.out.txt
-then
-    cat > "$tmp_dir"/secrets.json <<EOF
+start_server()
+{
+    _db_user=postgres_user
+    _db_password=postgres_password
+    _db_name=test-db
+
+    # Start the database and wait for it to be up and ready.
+    _container_name="test-$(echo -n "$test_name" | tr -c 'a-zA-Z0-9_.\-' '.')"
+    docker run --rm --name "$_container_name" \
+           --env POSTGRES_USER="$_db_user" \
+           --env POSTGRES_PASSWORD="$_db_password" \
+           --env POSTGRES_DB="$_db_name" \
+           --publish 5432:"$_db_port" \
+           postgres:18 \
+           > "$tmp_dir"/postgres.out.txt \
+           2> "$tmp_dir"/postgres.err.txt \
+        &
+
+    if _wait_poll_file 60 \
+                       "$tmp_dir"/postgres.err.txt \
+                       "ready to accept connections" \
+                       "$tmp_dir"/postgres.out.txt
+    then
+        cat > "$tmp_dir"/secrets.json <<EOF
 {
   "db_password": "$_db_password"
 }
 EOF
 
-    # Now that he database is up the server can start.
-    "$_server_binary" \
-        --port "$_app_port" \
-        --public-certificate "$_certificates_dir"/testing.crt \
-        --certificate-private-key "$_certificates_dir"/testing.key \
-        --db-port "$_db_port" \
-        --db-name "$_db_name" \
-        --db-user "$_db_user" \
-        --secrets "$tmp_dir"/secrets.json \
-        > "$tmp_dir"/server.out.txt \
-        2> "$tmp_dir"/server.err.txt \
-        &
-    _server_pid=$!
+        # Now that he database is up the server can start.
+        "$_server_binary" \
+            --port "$_app_port" \
+            --public-certificate "$_certificates_dir"/testing.crt \
+            --certificate-private-key "$_certificates_dir"/testing.key \
+            --db-port "$_db_port" \
+            --db-name "$_db_name" \
+            --db-user "$_db_user" \
+            --secrets "$tmp_dir"/secrets.json \
+            > "$tmp_dir"/server.out.txt \
+            2> "$tmp_dir"/server.err.txt \
+            &
+            _server_pid=$!
 
-    _wait_poll_file 60 \
-                    "$tmp_dir"/server.out.txt \
-                    'Starting the web services' \
-                    "$tmp_dir"/server.err.txt
-fi
+            wait_server_ready \
+                "$tmp_dir"/server.out.txt \
+                "$tmp_dir"/server.err.txt
+    fi
+}
 
 # Run a request to the server using the default service and the
 # default certificates. Fails if the request ends with an HTTP error

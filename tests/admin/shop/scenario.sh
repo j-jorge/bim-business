@@ -6,6 +6,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
 
 # shellcheck source-path=SCRIPTDIR
 . "$script_dir"/../../test-functions.sh
+start_server
 
 # List does not require authorization.
 expect_get admin/shop/list -o "$tmp_dir"/list-1.json
