@@ -13,14 +13,6 @@ struct Arguments {
   #[argh(option)]
   port: u16,
 
-  /// path to the public certificate for incoming HTTPS connections.
-  #[argh(option)]
-  public_certificate: std::path::PathBuf,
-
-  /// path to the private certificate for incoming HTTPS connections.
-  #[argh(option)]
-  certificate_private_key: std::path::PathBuf,
-
   /// host of the database.
   #[argh(option, default = "String::from(\"localhost\")")]
   db_host: String,
@@ -109,8 +101,9 @@ async fn migrate_database(
 #[tokio::main]
 async fn main() -> Result<()> {
   let arguments: Arguments = argh::from_env();
+
   let secrets: Secrets = serde_json::from_reader(std::io::BufReader::new(
-    std::fs::File::open(arguments.secrets)?,
+    std::fs::File::open(arguments.secrets.clone())?,
   ))?;
 
   // Tracing at app level. Use debug level for tower_http in order
@@ -127,10 +120,10 @@ async fn main() -> Result<()> {
     .init();
 
   let mut deadpool_config = deadpool_postgres::Config::new();
-  deadpool_config.host = Some(arguments.db_host);
+  deadpool_config.host = Some(arguments.db_host.clone());
   deadpool_config.port = Some(arguments.db_port);
-  deadpool_config.dbname = Some(arguments.db_name);
-  deadpool_config.user = Some(arguments.db_user);
+  deadpool_config.dbname = Some(arguments.db_name.clone());
+  deadpool_config.user = Some(arguments.db_user.clone());
   deadpool_config.password = Some(secrets.db_password);
 
   // Keep a pool of connections to the database. I wanted to share the
@@ -175,14 +168,6 @@ async fn main() -> Result<()> {
   let shop: std::sync::Arc<business::shop::Shop> =
     std::sync::Arc::new(business::shop::Shop::new(pool));
 
-  // The certificates, to handle HTTPS. There will be no support for HTTP.
-  let certificates = axum_server::tls_rustls::RustlsConfig::from_pem_file(
-    arguments.public_certificate,
-    arguments.certificate_private_key,
-  )
-  .await
-  .context("failed to init RustlsConfig")?;
-
   // Register the web services.
   let router = axum::Router::new()
     .nest(
@@ -221,10 +206,10 @@ async fn main() -> Result<()> {
     std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
     arguments.port,
   );
-  let service_future = axum_server::bind_rustls(address, certificates)
-    .serve(router.into_make_service());
+
+  let server = axum_server::bind(address).serve(router.into_make_service());
 
   println!("Starting the web services.");
 
-  return service_future.await.context("error during server run");
+  return server.await.context("error during server run");
 }

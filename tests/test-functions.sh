@@ -83,13 +83,11 @@ _test_functions_script_dir="$(readlink --canonicalize \
 # shellcheck source-path=SCRIPTDIR
 . "$_test_functions_script_dir"/testlib.sh
 
-_certificates_dir="$_test_functions_script_dir"/../certificates/
-
 # Temporary directory usable by the tests.
 tmp_dir="$(mktemp --directory)"
 
 # This is the service exposed when _server_binary is started.
-_service="https://localhost:$_app_port"
+_service="http://localhost:$_app_port"
 
 _kill_services()
 {
@@ -256,8 +254,6 @@ EOF
         # Now that he database is up the server can start.
         "$_server_binary" \
             --port "$_app_port" \
-            --public-certificate "$_certificates_dir"/testing.crt \
-            --certificate-private-key "$_certificates_dir"/testing.key \
             --db-port "$_db_port" \
             --db-name "$_db_name" \
             --db-user "$_db_user" \
@@ -273,16 +269,15 @@ EOF
     fi
 }
 
-# Run a request to the server using the default service and the
-# default certificates. Fails if the request ends with an HTTP error
-# code or if curl encounter an error, succeeds otherwise.
+# Run a request to the server using the default service. Fails if the
+# request ends with an HTTP error code or if curl encounter an error,
+# succeeds otherwise.
 _do_curl()
 {
     local resource="$_service/$1"
     shift
 
-    curl --silent --show-error --fail --cacert \
-         "$_certificates_dir"/testing.crt \
+    curl --silent --show-error --fail \
          "$resource" \
          "$@"
 }
