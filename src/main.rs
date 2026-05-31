@@ -116,7 +116,7 @@ async fn main() -> Result<()> {
         },
       ),
     )
-    .with(tracing_subscriber::fmt::layer())
+    .with(tracing_subscriber::fmt::layer().with_ansi(false))
     .init();
 
   let mut deadpool_config = deadpool_postgres::Config::new();
