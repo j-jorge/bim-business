@@ -195,10 +195,11 @@ async fn main() -> Result<()> {
       webapi::client::config::route(
         flat_client_config,
         game_features,
-        game_servers,
+        game_servers.clone(),
         shop,
       ),
     )
+    .nest("/gs/hello", webapi::gs::hello::route(game_servers))
     .layer(tower_http::trace::TraceLayer::new_for_http());
 
   // And finally, launch the server.

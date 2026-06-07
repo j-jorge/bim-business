@@ -2,5 +2,6 @@
 pub mod admin;
 pub mod client;
 pub mod flat_client_config;
+pub mod gs;
 
 mod error;

@@ -79,58 +79,6 @@ async fn set_time_to_live(
   return Ok(());
 }
 
-#[derive(serde::Deserialize)]
-struct KeepAliveRequest {
-  token: String,
-  host: String,
-  version: u64,
-  protocol_version: u64,
-}
-
-/**
- * Write down that a game server is online, and with which clients it
- * can talk. The business answers with the expected delay for the next
- * notification from the game server.
- *
- * Example:
- * {
- *   "token": "my-game-server-token",
- *   "host": "domain:port",
- *   "version": "Version of the server.",
- *   "protocol_version":
- *     "Version of the game protocol understood by the server."
- * }
- *
- * Response:
- * {
- *   "callback_delay_seconds": 124
- * }
- */
-async fn keep_alive(
-  state_handle: axum::extract::State<ServiceState>,
-  axum::response::Json(request): axum::response::Json<KeepAliveRequest>,
-) -> business::result::Result<String> {
-  let game_servers: &business::game_servers::GameServers =
-    &state_handle.0.game_servers;
-
-  let callback_delay: std::time::Duration = game_servers
-    .keep_alive(
-      &request.token,
-      request.host,
-      request.version,
-      request.protocol_version,
-    )
-    .await?;
-
-  let mut result = JsonMap::new();
-  result.insert(
-    "callback_delay_seconds".to_string(),
-    serde_json::to_value(callback_delay.as_secs())?,
-  );
-
-  return Ok(serde_json::to_string(&result)?);
-}
-
 /// List all game servers. This requires an administrator.
 async fn list(
   state_handle: axum::extract::State<ServiceState>,
@@ -196,6 +144,5 @@ pub fn route(
     .route("/list", axum::routing::get(list))
     .route("/set-time-to-live", axum::routing::post(set_time_to_live))
     .route_layer(axum::middleware::from_fn_with_state(state.clone(), auth))
-    .route("/keep-alive", axum::routing::post(keep_alive))
     .with_state(state);
 }

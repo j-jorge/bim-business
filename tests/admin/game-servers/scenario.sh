@@ -85,62 +85,62 @@ expect_json_eq \
          "$tmp_dir"/list-1.json
 
 # One game server tells us that it is alive.
-expect_post admin/game-servers/keep-alive \
+expect_post gs/hello \
             -H "Content-Type: application/json" \
+            -H "Authorization: $gs_token_2" \
             --data \
             '{
-               "token": "'"$gs_token_2"'",
                "host": "1.2.3.4:1234",
                "version": 42,
                "protocol_version": 24
              }' \
-             -o "$tmp_dir"/keep-alive-1.json
+             -o "$tmp_dir"/hello-1.json
 sed 's/\(callback_delay_seconds":\)[0-9]\+/\1"placeholder"/' \
-    -i "$tmp_dir"/keep-alive-1.json
+    -i "$tmp_dir"/hello-1.json
 expect_json_eq '{"callback_delay_seconds":"placeholder"}' \
-               "$tmp_dir"/keep-alive-1.json
+               "$tmp_dir"/hello-1.json
 
 # Same but with a domain instead of an IP for the host.
-expect_post admin/game-servers/keep-alive \
+expect_post gs/hello \
             -H "Content-Type: application/json" \
+            -H "Authorization: $gs_token_2" \
             --data \
             '{
-               "token": "'"$gs_token_2"'",
                "host": "localhost:1234",
                "version": 42,
                "protocol_version": 24
              }' \
-             -o "$tmp_dir"/keep-alive-2.json
+             -o "$tmp_dir"/hello-2.json
 sed 's/\(callback_delay_seconds":\)[0-9]\+/\1"placeholder"/' \
-    -i "$tmp_dir"/keep-alive-2.json
+    -i "$tmp_dir"/hello-2.json
 expect_json_eq '{"callback_delay_seconds":"placeholder"}' \
-               "$tmp_dir"/keep-alive-2.json
+               "$tmp_dir"/hello-2.json
 
 # This one sends incomplete information.
-expect_post_error 422 admin/game-servers/keep-alive \
+expect_post_error 422 gs/hello \
                   -H "Content-Type: application/json" \
+                  -H "Authorization: $gs_token" \
                   --data \
                   '{
-                     "token": "'"$gs_token"'",
                      "host": "localhost:1234",
                      "version": 42
                    }'
 # This one has an unknown token.
-expect_post_error 500 admin/game-servers/keep-alive \
+expect_post_error 500 gs/hello \
             -H "Content-Type: application/json" \
+            -H "Authorization: some_garbage" \
             --data \
             '{
-               "token": "some_garbage",
                "host": "localhost:1234",
                "version": 42,
                "protocol_version": 24
              }'
 # This one has an invalid host.
-expect_post_error 400 admin/game-servers/keep-alive \
+expect_post_error 400 gs/hello \
             -H "Content-Type: application/json" \
+            -H "Authorization: $gs_token" \
             --data \
             '{
-               "token": "'"$gs_token"'",
                "host": "localhost:123456",
                "version": 42,
                "protocol_version": 24
@@ -199,8 +199,9 @@ expect_post_error 422 admin/game-servers/set-time-to-live \
             --data '10'
 
 # Keep alive, to force an update of the date for removal of this server.
-expect_post admin/game-servers/keep-alive \
+expect_post gs/hello \
             -H "Content-Type: application/json" \
+            -H "Authorization: $gs_token_2" \
             --data \
             '{
                "token": "'"$gs_token_2"'",
@@ -208,11 +209,11 @@ expect_post admin/game-servers/keep-alive \
                "version": 42,
                "protocol_version": 24
              }' \
-             -o "$tmp_dir"/keep-alive-3.json
+             -o "$tmp_dir"/hello-3.json
 sed 's/\(callback_delay_seconds":\)[0-9]\+/\1"placeholder"/' \
-    -i "$tmp_dir"/keep-alive-3.json
+    -i "$tmp_dir"/hello-3.json
 expect_json_eq '{"callback_delay_seconds":"placeholder"}' \
-               "$tmp_dir"/keep-alive-3.json
+               "$tmp_dir"/hello-3.json
 
 # Let time pass to trigger a clean-up in the next request.
 sleep 2

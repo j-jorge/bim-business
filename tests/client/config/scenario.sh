@@ -50,31 +50,21 @@ expect_post admin/game-servers/register \
 gs_token_2="$(jq -r . "$tmp_dir"/game-server-2.json)"
 
 # The game servers must be alive to appear in the configuration.
-expect_post admin/game-servers/keep-alive \
+expect_post gs/hello \
             -H "Content-Type: application/json" \
+            -H "Authorization: $gs_token_1" \
             --data \
             '{
-               "token": "'"$gs_token_1"'",
                "host": "1.1.1.1:1111",
                "version": 1,
                "protocol_version": 11
              }' \
             -o /dev/null
-expect_post admin/game-servers/keep-alive \
+expect_post gs/hello \
             -H "Content-Type: application/json" \
+            -H "Authorization: $gs_token_2" \
             --data \
             '{
-               "token": "'"$gs_token_1"'",
-               "host": "1.1.1.1:1111",
-               "version": 1,
-               "protocol_version": 11
-             }' \
-            -o /dev/null
-expect_post admin/game-servers/keep-alive \
-            -H "Content-Type: application/json" \
-            --data \
-            '{
-               "token": "'"$gs_token_2"'",
                "host": "2.2.2.2:2222",
                "version": 2,
                "protocol_version": 22

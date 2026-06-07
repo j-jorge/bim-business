@@ -139,7 +139,20 @@ impl GameServers {
     return Ok(token);
   }
 
-  pub async fn keep_alive(
+  pub async fn validate_token(&self, token: &str) -> result::Result<bool> {
+    return Ok(
+      self
+        .m_db
+        .query_one_p(
+          "select exists (select token from game_server where token = $1)",
+          &[&token],
+        )
+        .await?
+        .get(0),
+    );
+  }
+
+  pub async fn hello(
     &self,
     token: &str,
     host: String,
