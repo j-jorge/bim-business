@@ -5,6 +5,7 @@ use crate::webapi;
 #[derive(Clone)]
 pub struct ServiceState {
   flat_config: std::sync::Arc<business::flat_client_config::FlatClientConfig>,
+  game_feature_slots: std::sync::Arc<business::game_feature_slots::Repository>,
   game_features: std::sync::Arc<business::game_features::GameFeatures>,
   game_servers: std::sync::Arc<business::game_servers::GameServers>,
   shop: std::sync::Arc<business::shop::Shop>,
@@ -34,6 +35,16 @@ async fn client_config(
 
     webapi::flat_client_config::collect(&mut misc, &entries)?;
     config.insert("misc".to_string(), serde_json::to_value(misc)?);
+  }
+
+  {
+    let game_feature_slots: &business::game_feature_slots::Repository =
+      &state_handle.0.game_feature_slots;
+
+    config.insert(
+      "game_feature_slot_prices".to_string(),
+      serde_json::to_value(game_feature_slots.list().await?)?,
+    );
   }
 
   {
@@ -74,12 +85,14 @@ async fn client_config(
 /// Configure all routes for this service.
 pub fn route(
   flat_config: std::sync::Arc<business::flat_client_config::FlatClientConfig>,
+  game_feature_slots: std::sync::Arc<business::game_feature_slots::Repository>,
   game_features: std::sync::Arc<business::game_features::GameFeatures>,
   game_servers: std::sync::Arc<business::game_servers::GameServers>,
   shop: std::sync::Arc<business::shop::Shop>,
 ) -> axum::Router {
   let state = ServiceState {
     flat_config,
+    game_feature_slots,
     game_features,
     game_servers,
     shop,

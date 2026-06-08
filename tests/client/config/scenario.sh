@@ -34,6 +34,12 @@ expect_post admin/shop/update \
             --data '{"product-1": 100, "product-2": 200}' \
             -o /dev/null
 
+# Game feature slots
+expect_post admin/game-feature-slots/update \
+            -H "Authorization: $lead_token" \
+            -H "Content-Type: application/json" \
+            --data '[{"index": 1, "coins": 20}, {"index": 3, "coins": 30}]'
+
 # Create a token for a new game server.
 expect_post admin/game-servers/register \
             -H "Authorization: $lead_token" \
@@ -82,6 +88,10 @@ expect_post client/config \
 expect_json_eq \
     '{
        "misc": {"prop-1": 123, "prop-2": "bbb"},
+       "game_feature_slot_prices": [
+         {"index": 1, "coins": 20},
+         {"index": 3, "coins": 30}
+       ],
        "game_feature_prices": {"feature-1": 11, "feature-2": 22},
        "shop": {"product-1": 100, "product-2": 200},
        "game_servers": [ "1.1.1.1:1111" ]
@@ -98,6 +108,10 @@ expect_post client/config \
 expect_json_eq \
     '{
        "misc": {"prop-1": 123, "prop-2": "bbb"},
+       "game_feature_slot_prices": [
+         {"index": 1, "coins": 20},
+         {"index": 3, "coins": 30}
+       ],
        "game_feature_prices": {"feature-1": 11, "feature-2": 22},
        "shop": {"product-1": 100, "product-2": 200},
        "game_servers": [ "2.2.2.2:2222" ]
@@ -114,6 +128,10 @@ expect_post client/config \
 expect_json_eq \
     '{
        "misc": {"prop-1": 123, "prop-2": "bbb"},
+       "game_feature_slot_prices": [
+         {"index": 1, "coins": 20},
+         {"index": 3, "coins": 30}
+       ],
        "game_feature_prices": {"feature-1": 11, "feature-2": 22},
        "shop": {"product-1": 100, "product-2": 200},
        "game_servers": []

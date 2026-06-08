@@ -66,22 +66,32 @@ async fn migrate_database(
     None => 0,
     Some(r) => r.get(0),
   };
+  const CURRENT_VERSION: i32 = 2;
 
-  if table_version == 0 {
-    println!("Table version is {}, upgrading.", table_version);
-    table_version += 1;
-
+  if table_version != CURRENT_VERSION {
     // Wrap the operations in a transaction such that we can apply
     // them all at once, thus avoiding a partial modification if
     // something fails.
     let t: deadpool_postgres::Transaction<'_> = client.transaction().await?;
 
-    // Ensure each service has the tables it needs.
-    business::flat_client_config::run_migration(&t, table_version).await?;
-    business::leads::run_migration(&t, table_version).await?;
-    business::game_features::run_migration(&t, table_version).await?;
-    business::game_servers::run_migration(&t, table_version).await?;
-    business::shop::run_migration(&t, table_version).await?;
+    if table_version == 0 {
+      println!("Table version is 0, upgrading to 1.");
+      table_version += 1;
+
+      // Ensure each service has the tables it needs.
+      business::flat_client_config::run_migration(&t, table_version).await?;
+      business::leads::run_migration(&t, table_version).await?;
+      business::game_features::run_migration(&t, table_version).await?;
+      business::game_servers::run_migration(&t, table_version).await?;
+      business::shop::run_migration(&t, table_version).await?;
+    }
+
+    if table_version == 1 {
+      println!("Table version is 1, upgrading to 2.");
+      table_version += 1;
+
+      business::game_feature_slots::run_migration(&t, table_version).await?;
+    }
 
     // Update the schema version too, in the same transaction.
     t.execute(
@@ -144,29 +154,19 @@ async fn main() -> Result<()> {
     .await
     .context("failed to migrate the database: {}")?;
 
-  // I wish I could avoid ARC here as it models stuff floating around
-  // in memory until it becomes unreferenced. By definition I can't
-  // control when it will be destroyed nor the order of the
-  // destruction :( Ideally I would have wanted to instantiate the
-  // services here and have them destroyed at the end of main.
-  //
-  // Unfortunately I could not find any solution to pass the business
-  // services to the web services otherwise, so there we go.
-  let leads: std::sync::Arc<business::leads::Leaders> =
-    std::sync::Arc::new(business::leads::Leaders::new(pool.clone()));
-  let flat_client_config: std::sync::Arc<
-    business::flat_client_config::FlatClientConfig,
-  > = std::sync::Arc::new(business::flat_client_config::FlatClientConfig::new(
-    pool.clone(),
-  ));
-  let game_features: std::sync::Arc<business::game_features::GameFeatures> =
-    std::sync::Arc::new(business::game_features::GameFeatures::new(
-      pool.clone(),
-    ));
-  let game_servers: std::sync::Arc<business::game_servers::GameServers> =
+  let leads = std::sync::Arc::new(business::leads::Leaders::new(pool.clone()));
+  let flat_client_config = std::sync::Arc::new(
+    business::flat_client_config::FlatClientConfig::new(pool.clone()),
+  );
+  let game_feature_slots = std::sync::Arc::new(
+    business::game_feature_slots::Repository::new(pool.clone()),
+  );
+  let game_features = std::sync::Arc::new(
+    business::game_features::GameFeatures::new(pool.clone()),
+  );
+  let game_servers =
     std::sync::Arc::new(business::game_servers::GameServers::new(pool.clone()));
-  let shop: std::sync::Arc<business::shop::Shop> =
-    std::sync::Arc::new(business::shop::Shop::new(pool));
+  let shop = std::sync::Arc::new(business::shop::Shop::new(pool));
 
   // Register the web services.
   let router = axum::Router::new()
@@ -175,6 +175,13 @@ async fn main() -> Result<()> {
       webapi::admin::flat_client_config::route(
         leads.clone(),
         flat_client_config.clone(),
+      ),
+    )
+    .nest(
+      "/admin/game-feature-slots",
+      webapi::admin::game_feature_slots::route(
+        leads.clone(),
+        game_feature_slots.clone(),
       ),
     )
     .nest(
@@ -194,6 +201,7 @@ async fn main() -> Result<()> {
       "/client/config",
       webapi::client::config::route(
         flat_client_config,
+        game_feature_slots,
         game_features,
         game_servers.clone(),
         shop,
