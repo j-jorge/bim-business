@@ -5,7 +5,7 @@ use crate::webapi::admin::auth;
 #[derive(Clone)]
 pub struct ServiceState {
   leaders: std::sync::Arc<business::leads::Leaders>,
-  game_features: std::sync::Arc<business::game_features::GameFeatures>,
+  game_features: std::sync::Arc<business::game_features::Repository>,
 }
 
 /// Middleware to validate that the request comes from a leader.
@@ -22,18 +22,16 @@ async fn auth(
  * This requires an administrator.
  *
  * Example:
- * {
- *   "product-1: 200,
- *   "product-2: 500
- * }
+ * [
+ *   {"id": "feature-1", "coins": 200},
+ *   {"id": "feature-2", "coins": 500}
+ * ]
  */
 async fn update(
   state_handle: axum::extract::State<ServiceState>,
-  axum::response::Json(features): axum::response::Json<
-    std::collections::HashMap<String, i32>,
-  >,
+  axum::Json(features): axum::Json<Vec<business::game_features::Feature>>,
 ) -> business::result::Result<()> {
-  let game_features: &business::game_features::GameFeatures =
+  let game_features: &business::game_features::Repository =
     &state_handle.0.game_features;
 
   return game_features.batch_put(&features).await;
@@ -42,20 +40,23 @@ async fn update(
 /// List all game features and their prices.
 async fn list(
   state_handle: axum::extract::State<ServiceState>,
-) -> business::result::Result<String> {
-  let game_features: &business::game_features::GameFeatures =
+) -> business::result::Result<axum::Json<Vec<business::game_features::Feature>>>
+{
+  let game_features: &business::game_features::Repository =
     &state_handle.0.game_features;
 
-  let feature_list: std::collections::HashMap<String, i32> =
+  let mut features: Vec<business::game_features::Feature> =
     game_features.list().await?;
 
-  return Ok(serde_json::to_string(&feature_list)?);
+  features.sort_by(|lhs, rhs| lhs.id.cmp(&rhs.id));
+
+  return Ok(axum::Json(features));
 }
 
 /// Configure all routes for this service.
 pub fn route(
   leaders: std::sync::Arc<business::leads::Leaders>,
-  game_features: std::sync::Arc<business::game_features::GameFeatures>,
+  game_features: std::sync::Arc<business::game_features::Repository>,
 ) -> axum::Router {
   let state = ServiceState {
     leaders,

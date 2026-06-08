@@ -156,14 +156,13 @@ async fn main() -> Result<()> {
 
   let leads = std::sync::Arc::new(business::leads::Leaders::new(pool.clone()));
   let flat_client_config = std::sync::Arc::new(
-    business::flat_client_config::FlatClientConfig::new(pool.clone()),
+    business::flat_client_config::Repository::new(pool.clone()),
   );
   let game_feature_slots = std::sync::Arc::new(
     business::game_feature_slots::Repository::new(pool.clone()),
   );
-  let game_features = std::sync::Arc::new(
-    business::game_features::GameFeatures::new(pool.clone()),
-  );
+  let game_features =
+    std::sync::Arc::new(business::game_features::Repository::new(pool.clone()));
   let game_servers =
     std::sync::Arc::new(business::game_servers::GameServers::new(pool.clone()));
   let shop = std::sync::Arc::new(business::shop::Shop::new(pool));

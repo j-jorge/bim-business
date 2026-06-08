@@ -8,7 +8,7 @@ use axum::response::IntoResponse;
 #[derive(Clone)]
 pub struct ServiceState {
   leaders: std::sync::Arc<business::leads::Leaders>,
-  flat_config: std::sync::Arc<business::flat_client_config::FlatClientConfig>,
+  flat_config: std::sync::Arc<business::flat_client_config::Repository>,
 }
 
 /// Middleware to validate that the request comes from a leader.
@@ -34,7 +34,7 @@ async fn update(
   state_handle: axum::extract::State<ServiceState>,
   axum::response::Json(payload): axum::response::Json<serde_json::Value>,
 ) -> axum::response::Response<axum::body::Body> {
-  let flat_config: &business::flat_client_config::FlatClientConfig =
+  let flat_config: &business::flat_client_config::Repository =
     &state_handle.0.flat_config;
 
   // Iterate over payload keys and values.
@@ -84,7 +84,7 @@ async fn erase(
   state_handle: axum::extract::State<ServiceState>,
   axum::response::Json(keys): axum::response::Json<Vec<String>>,
 ) -> business::result::Result<()> {
-  let flat_config: &business::flat_client_config::FlatClientConfig =
+  let flat_config: &business::flat_client_config::Repository =
     &state_handle.0.flat_config;
 
   return flat_config.batch_erase(&keys).await;
@@ -94,7 +94,7 @@ async fn erase(
 async fn list(
   state_handle: axum::extract::State<ServiceState>,
 ) -> business::result::Result<String> {
-  let flat_config: &business::flat_client_config::FlatClientConfig =
+  let flat_config: &business::flat_client_config::Repository =
     &state_handle.0.flat_config;
 
   let mut m: std::collections::HashMap<&str, serde_json::value::Value> =
@@ -110,7 +110,7 @@ async fn list(
 /// Configure all routes for this service.
 pub fn route(
   leaders: std::sync::Arc<business::leads::Leaders>,
-  flat_config: std::sync::Arc<business::flat_client_config::FlatClientConfig>,
+  flat_config: std::sync::Arc<business::flat_client_config::Repository>,
 ) -> axum::Router {
   let state = ServiceState {
     leaders,

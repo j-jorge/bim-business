@@ -4,9 +4,9 @@ use crate::webapi;
 
 #[derive(Clone)]
 pub struct ServiceState {
-  flat_config: std::sync::Arc<business::flat_client_config::FlatClientConfig>,
+  flat_config: std::sync::Arc<business::flat_client_config::Repository>,
   game_feature_slots: std::sync::Arc<business::game_feature_slots::Repository>,
-  game_features: std::sync::Arc<business::game_features::GameFeatures>,
+  game_features: std::sync::Arc<business::game_features::Repository>,
   game_servers: std::sync::Arc<business::game_servers::GameServers>,
   shop: std::sync::Arc<business::shop::Shop>,
 }
@@ -16,77 +16,52 @@ struct ConfigRequest {
   game_server_protocol_version: u64,
 }
 
+#[derive(serde::Serialize)]
+struct ConfigResponse {
+  pub misc: serde_json::value::Value,
+  pub game_feature_slots: Vec<business::game_feature_slots::Slot>,
+  pub game_features: Vec<business::game_features::Feature>,
+  pub game_servers: Vec<String>,
+  pub shop: Vec<business::shop::Product>,
+}
+
 /// Config to be sent to the client at launch time.
 async fn client_config(
   state_handle: axum::extract::State<ServiceState>,
-  axum::response::Json(request): axum::response::Json<ConfigRequest>,
-) -> business::result::Result<String> {
-  let mut config: std::collections::HashMap<String, serde_json::value::Value> =
+  axum::Json(request): axum::Json<ConfigRequest>,
+) -> business::result::Result<axum::Json<ConfigResponse>> {
+  let flat_config: &business::flat_client_config::Repository =
+    &state_handle.0.flat_config;
+  let flat_entries: Vec<business::flat_client_config::Entry> =
+    flat_config.all_entries().await?;
+  let mut misc: std::collections::HashMap<&str, serde_json::value::Value> =
     std::collections::HashMap::new();
 
-  {
-    let mut misc: std::collections::HashMap<&str, serde_json::value::Value> =
-      std::collections::HashMap::new();
+  webapi::flat_client_config::collect(&mut misc, &flat_entries)?;
 
-    let flat_config: &business::flat_client_config::FlatClientConfig =
-      &state_handle.0.flat_config;
-    let entries: Vec<business::flat_client_config::Entry> =
-      flat_config.all_entries().await?;
+  let game_feature_slots: &business::game_feature_slots::Repository =
+    &state_handle.0.game_feature_slots;
+  let game_features: &business::game_features::Repository =
+    &state_handle.0.game_features;
+  let game_servers: &business::game_servers::GameServers =
+    &state_handle.0.game_servers;
+  let shop: &business::shop::Shop = &state_handle.0.shop;
 
-    webapi::flat_client_config::collect(&mut misc, &entries)?;
-    config.insert("misc".to_string(), serde_json::to_value(misc)?);
-  }
-
-  {
-    let game_feature_slots: &business::game_feature_slots::Repository =
-      &state_handle.0.game_feature_slots;
-
-    config.insert(
-      "game_feature_slot_prices".to_string(),
-      serde_json::to_value(game_feature_slots.list().await?)?,
-    );
-  }
-
-  {
-    let game_features: &business::game_features::GameFeatures =
-      &state_handle.0.game_features;
-
-    config.insert(
-      "game_feature_prices".to_string(),
-      serde_json::to_value(game_features.list().await?)?,
-    );
-  }
-
-  {
-    let game_servers: &business::game_servers::GameServers =
-      &state_handle.0.game_servers;
-
-    config.insert(
-      "game_servers".to_string(),
-      serde_json::to_value(
-        game_servers
-          .online_hosts_for_protocol(request.game_server_protocol_version)?,
-      )?,
-    );
-  }
-
-  {
-    let shop: &business::shop::Shop = &state_handle.0.shop;
-
-    config.insert(
-      "shop".to_string(),
-      serde_json::to_value(shop.list().await?)?,
-    );
-  }
-
-  return Ok(serde_json::to_string(&config)?);
+  return Ok(axum::Json(ConfigResponse {
+    misc: serde_json::to_value(misc)?,
+    game_feature_slots: game_feature_slots.list().await?,
+    game_features: game_features.list().await?,
+    game_servers: game_servers
+      .online_hosts_for_protocol(request.game_server_protocol_version)?,
+    shop: shop.list().await?,
+  }));
 }
 
 /// Configure all routes for this service.
 pub fn route(
-  flat_config: std::sync::Arc<business::flat_client_config::FlatClientConfig>,
+  flat_config: std::sync::Arc<business::flat_client_config::Repository>,
   game_feature_slots: std::sync::Arc<business::game_feature_slots::Repository>,
-  game_features: std::sync::Arc<business::game_features::GameFeatures>,
+  game_features: std::sync::Arc<business::game_features::Repository>,
   game_servers: std::sync::Arc<business::game_servers::GameServers>,
   shop: std::sync::Arc<business::shop::Shop>,
 ) -> axum::Router {

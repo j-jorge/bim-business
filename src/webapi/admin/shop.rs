@@ -22,29 +22,28 @@ async fn auth(
  * does not exist. This requires an administrator.
  *
  * Example:
- * {
- *   "product-1: 200,
- *   "product-2: 500
- * }
+ * [
+ *   {"id": "product-1", coins: 200},
+ *   {"id": "product-2", coins: 500}
+ * ]
  */
 async fn update(
   state_handle: axum::extract::State<ServiceState>,
-  axum::response::Json(products): axum::response::Json<
-    std::collections::HashMap<String, i32>,
-  >,
+  axum::Json(products): axum::Json<Vec<business::shop::Product>>,
 ) -> business::result::Result<()> {
-  let shop: &business::shop::Shop = &state_handle.0.shop;
-
-  shop.batch_put(&products).await?;
-
-  return Ok(());
+  return state_handle.0.shop.batch_put(&products).await;
 }
 
 /// List all shop products.
 async fn list(
   state_handle: axum::extract::State<ServiceState>,
-) -> business::result::Result<String> {
-  return Ok(serde_json::to_string(&state_handle.0.shop.list().await?)?);
+) -> business::result::Result<axum::Json<Vec<business::shop::Product>>> {
+  let mut products: Vec<business::shop::Product> =
+    state_handle.0.shop.list().await?;
+
+  products.sort_by_key(|v| v.coins);
+
+  return Ok(axum::Json(products));
 }
 
 /// Configure all routes for this service.

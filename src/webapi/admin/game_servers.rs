@@ -2,8 +2,6 @@
 use crate::business;
 use crate::webapi::admin::auth;
 
-type JsonMap = std::collections::HashMap<String, serde_json::value::Value>;
-
 #[derive(Clone)]
 pub struct ServiceState {
   leaders: std::sync::Arc<business::leads::Leaders>,
@@ -40,8 +38,8 @@ struct RegisterRequest {
  */
 async fn register(
   state_handle: axum::extract::State<ServiceState>,
-  axum::response::Json(request): axum::response::Json<RegisterRequest>,
-) -> business::result::Result<String> {
+  axum::Json(request): axum::Json<RegisterRequest>,
+) -> business::result::Result<axum::Json<String>> {
   let game_servers: &business::game_servers::GameServers =
     &state_handle.0.game_servers;
 
@@ -49,7 +47,7 @@ async fn register(
     .register(&request.id, &request.description)
     .await?;
 
-  return Ok(serde_json::to_string(&token)?);
+  return Ok(axum::Json(token));
 }
 
 #[derive(serde::Deserialize)]
@@ -67,7 +65,7 @@ struct SetTimeToLiveRequest {
  */
 async fn set_time_to_live(
   state_handle: axum::extract::State<ServiceState>,
-  axum::response::Json(request): axum::response::Json<SetTimeToLiveRequest>,
+  axum::Json(request): axum::Json<SetTimeToLiveRequest>,
 ) -> business::result::Result<()> {
   let game_servers: &business::game_servers::GameServers =
     &state_handle.0.game_servers;
@@ -82,51 +80,13 @@ async fn set_time_to_live(
 /// List all game servers. This requires an administrator.
 async fn list(
   state_handle: axum::extract::State<ServiceState>,
-) -> business::result::Result<String> {
+) -> business::result::Result<
+  axum::Json<Vec<business::game_servers::GameServerInfo>>,
+> {
   let game_servers: &business::game_servers::GameServers =
     &state_handle.0.game_servers;
 
-  let mut result = JsonMap::new();
-  let servers_info: Vec<business::game_servers::GameServerInfo> =
-    game_servers.all().await?;
-
-  for server in servers_info {
-    let mut server_info = JsonMap::new();
-
-    server_info
-      .insert("token".to_string(), serde_json::to_value(server.token)?);
-    server_info.insert(
-      "description".to_string(),
-      serde_json::to_value(server.description)?,
-    );
-    server_info.insert(
-      "registration_date".to_string(),
-      serde_json::to_value(server.registration_date.to_rfc3339())?,
-    );
-    server_info.insert(
-      "last_seen".to_string(),
-      serde_json::to_value(server.last_seen.to_rfc3339())?,
-    );
-
-    if let Some(info) = server.info {
-      let mut info_map = JsonMap::new();
-      info_map.insert("host".to_string(), serde_json::to_value(info.host)?);
-      info_map
-        .insert("version".to_string(), serde_json::to_value(info.version)?);
-      info_map.insert(
-        "protocol_version".to_string(),
-        serde_json::to_value(info.protocol_version)?,
-      );
-      server_info.insert("info".to_string(), serde_json::to_value(info_map)?);
-      server_info.insert("online".to_string(), serde_json::to_value(true)?);
-    } else {
-      server_info.insert("online".to_string(), serde_json::to_value(false)?);
-    }
-
-    result.insert(server.id, serde_json::to_value(server_info)?);
-  }
-
-  return Ok(serde_json::to_string(&result)?);
+  return Ok(axum::Json(game_servers.all().await?));
 }
 
 /// Configure all routes for this service.

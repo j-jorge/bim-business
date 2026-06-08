@@ -19,23 +19,26 @@ pub async fn run_migration(
   return Ok(());
 }
 
-pub struct GameFeatures {
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct Feature {
+  pub id: String,
+  pub coins: i32,
+}
+
+pub struct Repository {
   m_db: db::Wrapper,
 }
 
-impl GameFeatures {
-  pub fn new(db: deadpool_postgres::Pool) -> GameFeatures {
-    return GameFeatures {
+impl Repository {
+  pub fn new(db: deadpool_postgres::Pool) -> Repository {
+    return Repository {
       m_db: db::Wrapper::new(db),
     };
   }
 
   /// Adds game features with the given cost in coins, or update the
   /// price of a game feature if the ID already exists.
-  pub async fn batch_put(
-    &self,
-    features: &std::collections::HashMap<String, i32>,
-  ) -> result::Result<()> {
+  pub async fn batch_put(&self, features: &Vec<Feature>) -> result::Result<()> {
     if features.is_empty() {
       return Ok(());
     }
@@ -44,9 +47,9 @@ impl GameFeatures {
     let transaction: deadpool_postgres::Transaction<'_> =
       db::transaction(&mut client).await?;
 
-    for (id, coins) in features {
-      if *coins < 0 {
-        tracing::error!("Feature cost '{}' cannot be negative", &id);
+    for f in features {
+      if f.coins < 0 {
+        tracing::error!("Feature cost '{}' cannot be negative", &f.id);
         return Err(error::Error::BadParameter);
       }
 
@@ -56,7 +59,7 @@ impl GameFeatures {
            values ($1, $2) \
            on conflict (id) \
            do update set cost_in_coins = $2",
-          &[&id, &coins],
+          &[&f.id, &f.coins],
         )
         .await?;
     }
@@ -64,15 +67,14 @@ impl GameFeatures {
     return Ok(transaction.commit().await?);
   }
 
-  /// Returns a map of game feature IDs as keys and their cost as coins as
-  /// values.
-  pub async fn list(
-    &self,
-  ) -> result::Result<std::collections::HashMap<String, i32>> {
+  pub async fn list(&self) -> result::Result<Vec<Feature>> {
     return self
       .m_db
       .collect("select id, cost_in_coins from game_feature", |row| {
-        (row.get(0), row.get(1))
+        Feature {
+          id: row.get(0),
+          coins: row.get(1),
+        }
       })
       .await;
   }

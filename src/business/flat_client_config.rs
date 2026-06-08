@@ -23,7 +23,7 @@ pub async fn run_migration(
   return Ok(());
 }
 
-pub struct FlatClientConfig {
+pub struct Repository {
   m_db: db::Wrapper,
 }
 
@@ -43,9 +43,9 @@ enum DbValueType {
   Text = 1,
 }
 
-impl FlatClientConfig {
-  pub fn new(db: deadpool_postgres::Pool) -> FlatClientConfig {
-    return FlatClientConfig {
+impl Repository {
+  pub fn new(db: deadpool_postgres::Pool) -> Repository {
+    return Repository {
       m_db: db::Wrapper::new(db),
     };
   }

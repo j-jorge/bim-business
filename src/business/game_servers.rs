@@ -28,18 +28,21 @@ pub async fn run_migration(
   return Ok(());
 }
 
+#[derive(serde::Serialize)]
 pub struct ServerDeclaredInfo {
   pub host: String,
   pub version: u64,
   pub protocol_version: u64,
 }
 
+#[derive(serde::Serialize)]
 pub struct GameServerInfo {
   pub id: String,
   pub token: String,
   pub description: String,
   pub registration_date: chrono::DateTime<chrono::Utc>,
   pub last_seen: chrono::DateTime<chrono::Utc>,
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub info: Option<ServerDeclaredInfo>,
 }
 

@@ -64,24 +64,22 @@ expect_get_error 401 admin/game-servers/list
 sed 's/\(registration_date":"\)[^"]\+/\1placeholder/g' \
     -i "$tmp_dir"/list-1.json
 expect_json_eq \
-    '{
-        "valid-server":
-        {
-          "online": false,
-          "description": "Some server.",
-          "token": "'"$gs_token"'",
-          "last_seen": "1970-01-01T00:00:00+00:00",
-          "registration_date": "placeholder"
-        },
-        "other-server":
-        {
-          "online": false,
-          "description": "Other server.",
-          "token": "'"$gs_token_2"'",
-          "last_seen": "1970-01-01T00:00:00+00:00",
-          "registration_date": "placeholder"
-        }
-     }' \
+    '[
+       {
+         "id": "valid-server",
+         "description": "Some server.",
+         "token": "'"$gs_token"'",
+         "last_seen": "1970-01-01T00:00:00Z",
+         "registration_date": "placeholder"
+       },
+       {
+         "id": "other-server",
+         "description": "Other server.",
+         "token": "'"$gs_token_2"'",
+         "last_seen": "1970-01-01T00:00:00Z",
+         "registration_date": "placeholder"
+       }
+     ]' \
          "$tmp_dir"/list-1.json
 
 # One game server tells us that it is alive.
@@ -153,30 +151,28 @@ expect_get admin/game-servers/list \
 sed 's/\(registration_date":"\|last_seen":"\)[^"]\+/\1placeholder/g' \
     -i "$tmp_dir"/list-2.json
 expect_json_eq \
-    '{
-        "valid-server":
-        {
-          "online": false,
-          "description": "Some server.",
-          "token": "'"$gs_token"'",
-          "last_seen": "placeholder",
-          "registration_date": "placeholder"
-        },
-        "other-server":
-        {
-          "online": true,
-          "description": "Other server.",
-          "token": "'"$gs_token_2"'",
-          "last_seen": "placeholder",
-          "registration_date": "placeholder",
-          "info":
-          {
-            "host": "localhost:1234",
-            "version": 42,
-            "protocol_version": 24
-          }
-        }
-     }' \
+    '[
+       {
+         "id": "valid-server",
+         "description": "Some server.",
+         "token": "'"$gs_token"'",
+         "last_seen": "placeholder",
+         "registration_date": "placeholder"
+       },
+       {
+         "id": "other-server",
+         "description": "Other server.",
+         "token": "'"$gs_token_2"'",
+         "last_seen": "placeholder",
+         "registration_date": "placeholder",
+         "info":
+         {
+           "host": "localhost:1234",
+           "version": 42,
+           "protocol_version": 24
+         }
+       }
+     ]' \
          "$tmp_dir"/list-2.json
 
 # Change the delay between the removal of the game servers for which
@@ -225,23 +221,21 @@ expect_get admin/game-servers/list \
 sed 's/\(registration_date":"\|last_seen":"\)[^"]\+/\1placeholder/g' \
     -i "$tmp_dir"/list-3.json
 expect_json_eq \
-    '{
-       "valid-server":
+    '[
        {
-         "online": false,
+         "id": "valid-server",
          "description": "Some server.",
          "token": "'"$gs_token"'",
          "last_seen": "placeholder",
          "registration_date": "placeholder"
        },
-       "other-server":
        {
-         "online": false,
+         "id": "other-server",
          "description": "Other server.",
          "token": "'"$gs_token_2"'",
          "last_seen": "placeholder",
          "registration_date": "placeholder"
        }
-     }' \
+     ]' \
          "$tmp_dir"/list-3.json
 

@@ -27,21 +27,19 @@ async fn weak_auth(
 /// leader token.
 async fn list_leaders(
   state_handle: axum::extract::State<StateHandle>,
-) -> business::result::Result<String> {
+) -> business::result::Result<axum::Json<Vec<String>>> {
   let leaders: &business::leads::Leaders = &state_handle.0;
-  let result: String = serde_json::to_string(&leaders.all_tokens().await?)?;
 
-  return Ok(result);
+  return Ok(axum::Json(leaders.all_tokens().await?));
 }
 
 /// Public API, creates a new leader token.
 async fn create_leader(
   state_handle: axum::extract::State<StateHandle>,
-) -> business::result::Result<String> {
+) -> business::result::Result<axum::Json<String>> {
   let leaders: &business::leads::Leaders = &state_handle.0;
-  let result: String = serde_json::to_string(&leaders.create_token().await?)?;
 
-  return Ok(result);
+  return Ok(axum::Json(leaders.create_token().await?));
 }
 
 /// Configure all routes for this service.

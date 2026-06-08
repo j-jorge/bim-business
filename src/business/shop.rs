@@ -21,6 +21,12 @@ pub async fn run_migration(
   return Ok(());
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct Product {
+  pub id: String,
+  pub coins: i32,
+}
+
 pub struct Shop {
   m_db: db::Wrapper,
 }
@@ -34,10 +40,7 @@ impl Shop {
 
   /// Adds products with the given reward in coins, or update the
   /// reward of a product if the ID already exists.
-  pub async fn batch_put(
-    &self,
-    products: &std::collections::HashMap<String, i32>,
-  ) -> result::Result<()> {
+  pub async fn batch_put(&self, products: &Vec<Product>) -> result::Result<()> {
     if products.is_empty() {
       return Ok(());
     }
@@ -46,9 +49,9 @@ impl Shop {
     let transaction: deadpool_postgres::Transaction<'_> =
       db::transaction(&mut client).await?;
 
-    for (id, coins) in products {
-      if *coins < 0 {
-        tracing::error!("Product coins reward '{}' cannot be negative", &id);
+    for p in products {
+      if p.coins < 0 {
+        tracing::error!("Product coins reward '{}' cannot be negative", &p.id);
         return Err(error::Error::BadParameter);
       }
       transaction
@@ -57,7 +60,7 @@ impl Shop {
            values ($1, $2) \
            on conflict (id) \
            do update set coins = $2",
-          &[&id, &coins],
+          &[&p.id, &p.coins],
         )
         .await?;
     }
@@ -66,12 +69,13 @@ impl Shop {
   }
 
   /// Returns a vector of shop products.
-  pub async fn list(
-    &self,
-  ) -> result::Result<std::collections::HashMap<String, i32>> {
+  pub async fn list(&self) -> result::Result<Vec<Product>> {
     return self
       .m_db
-      .collect("select id, coins from shop", |row| (row.get(0), row.get(1)))
+      .collect("select id, coins from shop", |row| Product {
+        id: row.get(0),
+        coins: row.get(1),
+      })
       .await;
   }
 }

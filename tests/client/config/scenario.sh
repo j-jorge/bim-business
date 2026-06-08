@@ -25,13 +25,19 @@ expect_post admin/flat-client-config/update \
 expect_post admin/game-features/update \
             -H "Authorization: $lead_token" \
             -H "Content-Type: application/json" \
-            --data '{"feature-1": 11, "feature-2": 22}' \
+            --data '[
+                      {"id": "feature-1", "coins": 11},
+                      {"id": "feature-2", "coins": 22}
+                    ]' \
             -o /dev/null
 
 expect_post admin/shop/update \
             -H "Authorization: $lead_token" \
             -H "Content-Type: application/json" \
-            --data '{"product-1": 100, "product-2": 200}' \
+            --data '[
+                      {"id": "product-1", "coins": 100},
+                      {"id": "product-2", "coins": 200}
+                    ]' \
             -o /dev/null
 
 # Game feature slots
@@ -88,12 +94,18 @@ expect_post client/config \
 expect_json_eq \
     '{
        "misc": {"prop-1": 123, "prop-2": "bbb"},
-       "game_feature_slot_prices": [
+       "game_feature_slots": [
          {"index": 1, "coins": 20},
          {"index": 3, "coins": 30}
        ],
-       "game_feature_prices": {"feature-1": 11, "feature-2": 22},
-       "shop": {"product-1": 100, "product-2": 200},
+       "game_features": [
+         {"id": "feature-1", "coins": 11},
+         {"id": "feature-2", "coins": 22}
+       ],
+       "shop": [
+         {"id": "product-1", "coins": 100},
+         {"id": "product-2", "coins": 200}
+       ],
        "game_servers": [ "1.1.1.1:1111" ]
      }' \
          "$tmp_dir"/config-1.json
@@ -108,12 +120,18 @@ expect_post client/config \
 expect_json_eq \
     '{
        "misc": {"prop-1": 123, "prop-2": "bbb"},
-       "game_feature_slot_prices": [
+       "game_feature_slots": [
          {"index": 1, "coins": 20},
          {"index": 3, "coins": 30}
        ],
-       "game_feature_prices": {"feature-1": 11, "feature-2": 22},
-       "shop": {"product-1": 100, "product-2": 200},
+       "game_features": [
+         {"id": "feature-1", "coins": 11},
+         {"id": "feature-2", "coins": 22}
+       ],
+       "shop": [
+         {"id": "product-1", "coins": 100},
+         {"id": "product-2", "coins": 200}
+       ],
        "game_servers": [ "2.2.2.2:2222" ]
      }' \
          "$tmp_dir"/config-2.json
@@ -128,12 +146,18 @@ expect_post client/config \
 expect_json_eq \
     '{
        "misc": {"prop-1": 123, "prop-2": "bbb"},
-       "game_feature_slot_prices": [
+       "game_feature_slots": [
          {"index": 1, "coins": 20},
          {"index": 3, "coins": 30}
        ],
-       "game_feature_prices": {"feature-1": 11, "feature-2": 22},
-       "shop": {"product-1": 100, "product-2": 200},
+       "game_features": [
+         {"id": "feature-1", "coins": 11},
+         {"id": "feature-2", "coins": 22}
+       ],
+       "shop": [
+         {"id": "product-1", "coins": 100},
+         {"id": "product-2", "coins": 200}
+       ],
        "game_servers": []
      }' \
          "$tmp_dir"/config-3.json

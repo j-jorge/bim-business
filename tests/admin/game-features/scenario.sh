@@ -10,13 +10,13 @@ start_server
 
 # List does not require authorization.
 expect_get admin/game-features/list -o "$tmp_dir"/list-1.json
-expect_json_eq '{}' "$tmp_dir"/list-1.json
+expect_json_eq '[]' "$tmp_dir"/list-1.json
 
 # No authorization header: the request should fail.
 expect_post_error 401 \
                   admin/game-features/update \
                   -H "Content-Type: application/json" \
-                  --data '{"item-1": 11}'
+                  --data '[{"id": "item-1", "coins": 11}]'
 
 # Create an administrator.
 expect_post admin/leads/create -H "Authorization: _" \
@@ -27,23 +27,31 @@ token="$(jq -r . "$tmp_dir"/lead.json)"
 expect_post admin/game-features/update \
             -H "Authorization: $token" \
             -H "Content-Type: application/json" \
-            --data '{"item-1": 11}'
+            --data '[{"id": "item-1", "coins": 11}]'
 expect_get admin/game-features/list -o "$tmp_dir"/list-2.json
-expect_json_eq '{"item-1": 11}' "$tmp_dir"/list-2.json
+expect_json_eq '[{"id": "item-1", "coins": 11}]' "$tmp_dir"/list-2.json
 
 # Add a second item.
 expect_post admin/game-features/update \
             -H "Authorization: $token" \
             -H "Content-Type: application/json" \
-            --data '{"item-2": 22}'
+            --data '[{"id": "item-2", "coins": 22}]'
 expect_get admin/game-features/list -o "$tmp_dir"/list-3.json
-expect_json_eq '{"item-1": 11, "item-2": 22}' "$tmp_dir"/list-3.json
+expect_json_eq '[
+                  {"id": "item-1", "coins": 11},
+                  {"id": "item-2", "coins": 22}
+                ]' \
+                    "$tmp_dir"/list-3.json
 
 # Modify an existing item.
 expect_post admin/game-features/update \
             -H "Authorization: $token" \
             -H "Content-Type: application/json" \
-            --data '{"item-2": 202}'
+            --data '[{"id": "item-2", "coins": 202}]'
 expect_get admin/game-features/list -o "$tmp_dir"/list-4.json
-expect_json_eq '{"item-1": 11, "item-2": 202}' "$tmp_dir"/list-4.json
+expect_json_eq '[
+                  {"id": "item-1", "coins": 11},
+                  {"id": "item-2", "coins": 202}
+                ]' \
+                    "$tmp_dir"/list-4.json
 

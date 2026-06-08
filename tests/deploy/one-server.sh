@@ -83,7 +83,7 @@ lead_token="$(jq -r . "$tmp_dir"/lead.json)"
 expect_post admin/game-features/update \
             --header "Authorization: $lead_token" \
             --header "Content-Type: application/json" \
-            --data '{"item-1": 11}'
+            --data '[{"id": "item-1", "coins": 11}]'
 
 info "Deploy again, it should fail because the lock is active."
 expect_false "${deploy_command[@]}"
