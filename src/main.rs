@@ -40,74 +40,6 @@ struct Secrets {
   db_password: String,
 }
 
-/// Update the tables to match the state required by the current code.
-///
-/// Many tools (e.g. Loco or Ruby on Rails) provide a rollback
-/// mechanism but I don't see when it becomes useful. Some
-/// transformations cannot be rollbacked (e.g. drop table) so it seems
-/// that it is necessary to backup the database before any
-/// migration. But then, why rollback if we can just restore the
-/// backup?
-async fn migrate_database(
-  mut client: deadpool_postgres::Object,
-) -> business::result::Result<()> {
-  // We are keeping the current version of the schema into a
-  // specific table which will have a single row (or none on
-  // creation) with the version number.
-  client
-    .batch_execute("create table if not exists meta_version (value integer)")
-    .await?;
-
-  let version_row: Option<tokio_postgres::Row> = client
-    .query_opt("select value from meta_version", &[])
-    .await
-    .unwrap();
-  let mut table_version: i32 = match version_row {
-    None => 0,
-    Some(r) => r.get(0),
-  };
-  const CURRENT_VERSION: i32 = 2;
-
-  if table_version != CURRENT_VERSION {
-    // Wrap the operations in a transaction such that we can apply
-    // them all at once, thus avoiding a partial modification if
-    // something fails.
-    let t: deadpool_postgres::Transaction<'_> = client.transaction().await?;
-
-    if table_version == 0 {
-      println!("Table version is 0, upgrading to 1.");
-      table_version += 1;
-
-      // Ensure each service has the tables it needs.
-      business::flat_client_config::run_migration(&t, table_version).await?;
-      business::leads::run_migration(&t, table_version).await?;
-      business::game_features::run_migration(&t, table_version).await?;
-      business::game_servers::run_migration(&t, table_version).await?;
-      business::shop::run_migration(&t, table_version).await?;
-    }
-
-    if table_version == 1 {
-      println!("Table version is 1, upgrading to 2.");
-      table_version += 1;
-
-      business::game_feature_slots::run_migration(&t, table_version).await?;
-    }
-
-    // Update the schema version too, in the same transaction.
-    t.execute(
-      "insert into meta_version (value) values ($1);",
-      &[&table_version],
-    )
-    .await?;
-
-    t.commit().await?;
-  }
-
-  println!("Migration done. Final version is {}.", table_version);
-
-  return Ok(());
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
   let arguments: Arguments = argh::from_env();
@@ -150,7 +82,7 @@ async fn main() -> Result<()> {
     )
     .context("failed to create Postgres connection pool")?;
 
-  migrate_database(pool.get().await?)
+  business::schema::migrate_database(pool.get().await?)
     .await
     .context("failed to migrate the database: {}")?;
 

@@ -8,26 +8,6 @@ use std::str::FromStr;
 // long as they keep notifying the business server about their
 // availability.
 
-pub async fn run_migration(
-  transaction: &deadpool_postgres::Transaction<'_>,
-  to_version: i32,
-) -> result::Result<()> {
-  if to_version == 1 {
-    transaction
-      .batch_execute(
-        "create table game_server \
-         (id text primary key, \
-         token text unique, \
-         description text, \
-         registration_date timestamp, \
-         last_seen timestamp)",
-      )
-      .await?;
-  }
-
-  return Ok(());
-}
-
 #[derive(serde::Serialize)]
 pub struct ServerDeclaredInfo {
   pub host: String,

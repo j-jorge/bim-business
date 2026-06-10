@@ -4,25 +4,6 @@ use super::*;
 // Key-value storage for the client's config parameters that would not
 // need special handling.
 
-pub async fn run_migration(
-  transaction: &deadpool_postgres::Transaction<'_>,
-  to_version: i32,
-) -> result::Result<()> {
-  if to_version == 1 {
-    transaction
-      .batch_execute(
-        "create table flat_client_config \
-           (key text primary key, \
-           type smallint, \
-           int64_value bigint, \
-           text_value text)",
-      )
-      .await?;
-  }
-
-  return Ok(());
-}
-
 pub struct Repository {
   m_db: db::Wrapper,
 }

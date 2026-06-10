@@ -9,4 +9,5 @@ pub mod game_features;
 pub mod game_servers;
 pub mod leads;
 pub mod result;
+pub mod schema;
 pub mod shop;

@@ -1,22 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::*;
 
-pub async fn run_migration(
-  transaction: &deadpool_postgres::Transaction<'_>,
-  to_version: i32,
-) -> result::Result<()> {
-  if to_version == 2 {
-    transaction
-      .batch_execute(
-        "create table game_feature_slot \
-         (index integer primary key, cost_in_coins integer)",
-      )
-      .await?;
-  }
-
-  return Ok(());
-}
-
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Slot {
   pub index: i32,

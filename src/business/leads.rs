@@ -2,22 +2,7 @@
 use super::*;
 
 // What is called a leader (or a lead) here is an administrator. They
-// are allowed to edit anything.
-
-pub async fn run_migration(
-  transaction: &deadpool_postgres::Transaction<'_>,
-  to_version: i32,
-) -> result::Result<()> {
-  if to_version == 1 {
-    // The leaders are just identified by a random token they will
-    // have to pass in the authorization header.
-    transaction
-      .batch_execute("create table leads (token text unique)")
-      .await?;
-  }
-
-  return Ok(());
-}
+// are allowed to edit everything.
 
 pub struct Leaders {
   m_db: db::Wrapper,

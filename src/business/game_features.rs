@@ -3,22 +3,6 @@ use super::*;
 
 // A game feature is just an ID and an associated cost in coins.
 
-pub async fn run_migration(
-  transaction: &deadpool_postgres::Transaction<'_>,
-  to_version: i32,
-) -> result::Result<()> {
-  if to_version == 1 {
-    transaction
-      .batch_execute(
-        "create table game_feature \
-         (id text primary key, cost_in_coins integer)",
-      )
-      .await?;
-  }
-
-  return Ok(());
-}
-
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Feature {
   pub id: String,
