@@ -11,11 +11,12 @@ axum-server = "0.8"
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 deadpool-postgres = "0.14"
+postgres-types = { version = "0.2", features = ["derive"] }
 rand = { version = "0.10", features = ["std_rng"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
 tokio-postgres = "0.7"
 tower-http = { version = "0.6", features = ["trace"] }
 tracing = "0.1"
@@ -23,3 +24,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [lints.clippy]
 needless_return = "allow"
+
+[package.metadata.cargo-machete]
+# Required to reference tokio_postgres::types::ToSql.
+ignored = ["postgres-types"]

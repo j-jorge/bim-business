@@ -16,7 +16,7 @@ expect_json_eq '[]' "$tmp_dir"/list-1.json
 expect_post_error 401 \
                   admin/game-features/update \
                   -H "Content-Type: application/json" \
-                  --data '[{"id": "item-1", "coins": 11}]'
+                  --data '[{"name": "item-1", "coins": 11}]'
 
 # Create an administrator.
 expect_post admin/leads/create -H "Authorization: _" \
@@ -27,19 +27,19 @@ token="$(jq -r . "$tmp_dir"/lead.json)"
 expect_post admin/game-features/update \
             -H "Authorization: $token" \
             -H "Content-Type: application/json" \
-            --data '[{"id": "item-1", "coins": 11}]'
+            --data '[{"name": "item-1", "coins": 11}]'
 expect_get admin/game-features/list -o "$tmp_dir"/list-2.json
-expect_json_eq '[{"id": "item-1", "coins": 11}]' "$tmp_dir"/list-2.json
+expect_json_eq '[{"name": "item-1", "coins": 11}]' "$tmp_dir"/list-2.json
 
 # Add a second item.
 expect_post admin/game-features/update \
             -H "Authorization: $token" \
             -H "Content-Type: application/json" \
-            --data '[{"id": "item-2", "coins": 22}]'
+            --data '[{"name": "item-2", "coins": 22}]'
 expect_get admin/game-features/list -o "$tmp_dir"/list-3.json
 expect_json_eq '[
-                  {"id": "item-1", "coins": 11},
-                  {"id": "item-2", "coins": 22}
+                  {"name": "item-1", "coins": 11},
+                  {"name": "item-2", "coins": 22}
                 ]' \
                     "$tmp_dir"/list-3.json
 
@@ -47,11 +47,11 @@ expect_json_eq '[
 expect_post admin/game-features/update \
             -H "Authorization: $token" \
             -H "Content-Type: application/json" \
-            --data '[{"id": "item-2", "coins": 202}]'
+            --data '[{"name": "item-2", "coins": 202}]'
 expect_get admin/game-features/list -o "$tmp_dir"/list-4.json
 expect_json_eq '[
-                  {"id": "item-1", "coins": 11},
-                  {"id": "item-2", "coins": 202}
+                  {"name": "item-1", "coins": 11},
+                  {"name": "item-2", "coins": 202}
                 ]' \
                     "$tmp_dir"/list-4.json
 

@@ -4,17 +4,17 @@ use crate::webapi::admin::auth;
 
 #[derive(Clone)]
 pub struct ServiceState {
-  leaders: std::sync::Arc<business::leads::Leaders>,
+  db: deadpool_postgres::Pool,
   game_servers: std::sync::Arc<business::game_servers::GameServers>,
 }
 
 /// Middleware to validate that the request comes from a leader.
 async fn auth(
-  state_handle: axum::extract::State<ServiceState>,
+  state: axum::extract::State<ServiceState>,
   request: axum::extract::Request,
   next: axum::middleware::Next,
 ) -> axum::response::Response<axum::body::Body> {
-  return auth::validate_request(&state_handle.0.leaders, request, next).await;
+  return auth::validate_request(&state.0.db, request, next).await;
 }
 
 #[derive(serde::Deserialize)]
@@ -37,72 +37,43 @@ struct RegisterRequest {
  * "some-token"
  */
 async fn register(
-  state_handle: axum::extract::State<ServiceState>,
+  state: axum::extract::State<ServiceState>,
   axum::Json(request): axum::Json<RegisterRequest>,
 ) -> business::result::Result<axum::Json<String>> {
   let game_servers: &business::game_servers::GameServers =
-    &state_handle.0.game_servers;
+    &state.0.game_servers;
 
   let token: String = game_servers
-    .register(&request.id, &request.description)
+    .register(&state.0.db.get().await?, &request.id, &request.description)
     .await?;
 
   return Ok(axum::Json(token));
 }
 
-#[derive(serde::Deserialize)]
-struct SetTimeToLiveRequest {
-  delay_in_minutes: u64,
-}
-
-/**
- * Changes the delay between two runs of the removal of inactive game servers.
- *
- * Example:
- * {
- *   "delay_in_minutes": 1
- * }
- */
-async fn set_time_to_live(
-  state_handle: axum::extract::State<ServiceState>,
-  axum::Json(request): axum::Json<SetTimeToLiveRequest>,
-) -> business::result::Result<()> {
-  let game_servers: &business::game_servers::GameServers =
-    &state_handle.0.game_servers;
-
-  game_servers.set_clean_up_delay(std::time::Duration::from_mins(
-    request.delay_in_minutes,
-  ));
-
-  return Ok(());
-}
-
 /// List all game servers. This requires an administrator.
 async fn list(
-  state_handle: axum::extract::State<ServiceState>,
+  state: axum::extract::State<ServiceState>,
 ) -> business::result::Result<
   axum::Json<Vec<business::game_servers::GameServerInfo>>,
 > {
   let game_servers: &business::game_servers::GameServers =
-    &state_handle.0.game_servers;
+    &state.0.game_servers;
 
-  return Ok(axum::Json(game_servers.all().await?));
+  return Ok(axum::Json(
+    game_servers.all(&state.0.db.get().await?).await?,
+  ));
 }
 
 /// Configure all routes for this service.
 pub fn route(
-  leaders: std::sync::Arc<business::leads::Leaders>,
   game_servers: std::sync::Arc<business::game_servers::GameServers>,
+  db: deadpool_postgres::Pool,
 ) -> axum::Router {
-  let state = ServiceState {
-    leaders,
-    game_servers,
-  };
+  let state = ServiceState { db, game_servers };
 
   return axum::Router::new()
     .route("/register", axum::routing::post(register))
     .route("/list", axum::routing::get(list))
-    .route("/set-time-to-live", axum::routing::post(set_time_to_live))
     .route_layer(axum::middleware::from_fn_with_state(state.clone(), auth))
     .with_state(state);
 }

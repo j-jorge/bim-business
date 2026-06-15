@@ -11,6 +11,12 @@ impl axum::response::IntoResponse for business::error::Error {
       business::error::Error::BadParameter => {
         axum::http::StatusCode::BAD_REQUEST.into_response()
       }
+      business::error::Error::UniqueViolation => {
+        axum::http::StatusCode::CONFLICT.into_response()
+      }
+      business::error::Error::Unprocessable => {
+        axum::http::StatusCode::UNPROCESSABLE_ENTITY.into_response()
+      }
       _ => axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     };
   }

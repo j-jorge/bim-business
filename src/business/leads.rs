@@ -4,57 +4,36 @@ use super::*;
 // What is called a leader (or a lead) here is an administrator. They
 // are allowed to edit everything.
 
-pub struct Leaders {
-  m_db: db::Wrapper,
+pub async fn validate_token(
+  db: &db::Client,
+  token: &str,
+) -> result::Result<bool> {
+  return db::exists_p(
+    db,
+    "select token from leads where token = $1",
+    &[&token],
+  )
+  .await;
 }
 
-impl Leaders {
-  pub fn new(db: deadpool_postgres::Pool) -> Leaders {
-    return Leaders {
-      m_db: db::Wrapper::new(db),
-    };
-  }
+/// In initialization state there is no leader (the table has just
+/// been created, it's empty). The only allowed action is to create a
+/// leader.
+pub async fn is_in_initialization_state(
+  db: &db::Client,
+) -> result::Result<bool> {
+  let has_any_lead: bool = db::exists(db, "select token from leads").await?;
 
-  pub async fn validate_token(&self, token: &str) -> result::Result<bool> {
-    return Ok(
-      self
-        .m_db
-        .query_one_p(
-          "select exists (select token from leads where token = $1)",
-          &[&token],
-        )
-        .await?
-        .get(0),
-    );
-  }
+  return Ok(!has_any_lead);
+}
 
-  /// In initialization state there is no leader (the table has just
-  /// been created, it's empty). The only allowed action is to create a
-  /// leader.
-  pub async fn is_in_initialization_state(&self) -> result::Result<bool> {
-    let has_any_lead: bool = self
-      .m_db
-      .query_one("select exists (select token from leads)")
-      .await?
-      .get(0);
+pub async fn create_token(db: &db::Client) -> result::Result<String> {
+  let token: String = token::generate_token(32)?;
+  db::execute_p(db, "insert into leads values ($1)", &[&token]).await?;
 
-    return Ok(!has_any_lead);
-  }
+  return Ok(token);
+}
 
-  pub async fn create_token(&self) -> result::Result<String> {
-    let token: String = token::generate_token(32)?;
-    self
-      .m_db
-      .execute_p("insert into leads values ($1)", &[&token])
-      .await?;
-
-    return Ok(token);
-  }
-
-  pub async fn all_tokens(&self) -> result::Result<Vec<String>> {
-    return self
-      .m_db
-      .collect("select token from leads", |r| r.get(0))
-      .await;
-  }
+pub async fn all_tokens(db: &db::Client) -> result::Result<Vec<String>> {
+  return db::collect(db, "select token from leads", |r| r.get(0)).await;
 }

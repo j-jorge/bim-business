@@ -14,6 +14,18 @@ expect_post admin/leads/create -H "Authorization: _" \
             -o "$tmp_dir"/lead.json
 admin_token="$(jq -r . "$tmp_dir"/lead.json)"
 
+# Change the delay between the removal of the game servers for which
+# we have no news. Game server removal is triggered on client config
+# requests, so we can do it now, it should not impact the server list
+# until we fetch the config.
+expect_post admin/app-config/update \
+            -H "Authorization: $admin_token" \
+            -H "Content-Type: application/json" \
+            --data '[{
+                       "key": "game_servers.clean_up_delay.minutes",
+                       "value": "0"
+                    }]'
+
 # Create a token for a new game server.
 expect_post admin/game-servers/register \
             -H "Authorization: $admin_token" \
@@ -25,7 +37,7 @@ gs_token="$(jq -r . "$tmp_dir"/register-1.json)"
 expect_ne "" "$gs_token"
 
 # Registering the same server ID twice should fail.
-expect_post_error 500 admin/game-servers/register \
+expect_post_error 409 admin/game-servers/register \
                   -H "Authorization: $admin_token" \
                   -H "Content-Type: application/json" \
                   --data '{"id": "valid-server", "description": "Some server."}'
@@ -124,7 +136,7 @@ expect_post_error 422 gs/hello \
                      "version": 42
                    }'
 # This one has an unknown token.
-expect_post_error 500 gs/hello \
+expect_post_error 401 gs/hello \
             -H "Content-Type: application/json" \
             -H "Authorization: some_garbage" \
             --data \
@@ -175,44 +187,15 @@ expect_json_eq \
      ]' \
          "$tmp_dir"/list-2.json
 
-# Change the delay between the removal of the game servers for which
-# we have no news.
-expect_post admin/game-servers/set-time-to-live \
-            -H "Authorization: $admin_token" \
+# Game server removal is triggered on client config requests. Do it to
+# force an update of the date for removal of this server.
+expect_post client/config \
             -H "Content-Type: application/json" \
-            --data '{"delay_in_minutes": 0}'
-# Can't change the delay if we are no admin.
-expect_post_error 401 admin/game-servers/set-time-to-live \
-            -H "Authorization: not_an_admin" \
-            -H "Content-Type: application/json" \
-            --data '{"delay_in_minutes": 10}'
-expect_post_error 401 admin/game-servers/set-time-to-live \
-            -H "Content-Type: application/json" \
-            --data '{"delay_in_minutes": 10}'
-expect_post_error 422 admin/game-servers/set-time-to-live \
-            -H "Authorization: $admin_token" \
-            -H "Content-Type: application/json" \
-            --data '10'
-
-# Keep alive, to force an update of the date for removal of this server.
-expect_post gs/hello \
-            -H "Content-Type: application/json" \
-            -H "Authorization: $gs_token_2" \
             --data \
             '{
-               "token": "'"$gs_token_2"'",
-               "host": "localhost:1234",
-               "version": 42,
-               "protocol_version": 24
+               "game_server_protocol_version": 0
              }' \
-             -o "$tmp_dir"/hello-3.json
-sed 's/\(callback_delay_seconds":\)[0-9]\+/\1"placeholder"/' \
-    -i "$tmp_dir"/hello-3.json
-expect_json_eq '{"callback_delay_seconds":"placeholder"}' \
-               "$tmp_dir"/hello-3.json
-
-# Let time pass to trigger a clean-up in the next request.
-sleep 2
+             -o "$tmp_dir"/client-config.json
 
 # All game servers should be offline.
 expect_get admin/game-servers/list \

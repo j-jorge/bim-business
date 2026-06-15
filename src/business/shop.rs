@@ -9,55 +9,40 @@ pub struct Product {
   pub coins: i32,
 }
 
-pub struct Shop {
-  m_db: db::Wrapper,
+/// Adds products with the given reward in coins, or update the
+/// reward of a product if the ID already exists.
+pub async fn batch_put(
+  t: &db::Transaction<'_>,
+  products: &Vec<Product>,
+) -> result::Result<()> {
+  if products.is_empty() {
+    return Ok(());
+  }
+
+  for p in products {
+    if p.coins < 0 {
+      tracing::error!("Product coins reward '{}' cannot be negative", &p.id);
+      return Err(error::Error::BadParameter);
+    }
+    db::execute_p(
+      t,
+      "insert into shop \
+                 values ($1, $2) \
+                 on conflict (id) \
+                 do update set coins = $2",
+      &[&p.id, &p.coins],
+    )
+    .await?;
+  }
+
+  return Ok(());
 }
 
-impl Shop {
-  pub fn new(db: deadpool_postgres::Pool) -> Shop {
-    return Shop {
-      m_db: db::Wrapper::new(db),
-    };
-  }
-
-  /// Adds products with the given reward in coins, or update the
-  /// reward of a product if the ID already exists.
-  pub async fn batch_put(&self, products: &Vec<Product>) -> result::Result<()> {
-    if products.is_empty() {
-      return Ok(());
-    }
-
-    let mut client: deadpool_postgres::Object = self.m_db.client().await?;
-    let transaction: deadpool_postgres::Transaction<'_> =
-      db::transaction(&mut client).await?;
-
-    for p in products {
-      if p.coins < 0 {
-        tracing::error!("Product coins reward '{}' cannot be negative", &p.id);
-        return Err(error::Error::BadParameter);
-      }
-      transaction
-        .execute(
-          "insert into shop \
-           values ($1, $2) \
-           on conflict (id) \
-           do update set coins = $2",
-          &[&p.id, &p.coins],
-        )
-        .await?;
-    }
-
-    return Ok(transaction.commit().await?);
-  }
-
-  /// Returns a vector of shop products.
-  pub async fn list(&self) -> result::Result<Vec<Product>> {
-    return self
-      .m_db
-      .collect("select id, coins from shop", |row| Product {
-        id: row.get(0),
-        coins: row.get(1),
-      })
-      .await;
-  }
+/// Returns a vector of shop products.
+pub async fn list(db: &db::Client) -> result::Result<Vec<Product>> {
+  return db::collect(db, "select id, coins from shop", |row| Product {
+    id: row.get(0),
+    coins: row.get(1),
+  })
+  .await;
 }

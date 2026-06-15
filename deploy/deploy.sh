@@ -156,6 +156,9 @@ mkdir --parents "$archive_path"/bim/{bin,etc,host}
 cp "$script_dir"/docker-compose.yml \
    "$script_dir"/dockerfile.db \
    "$archive_path"/
+cp --recursive \
+   "$script_dir"/../assets \
+   "$archive_path"/bim/
 cp "$script_dir"/../target/"$build_type"/bim-business \
    "$script_dir"/bim-business-launcher.sh \
    "$archive_path"/bim/bin/

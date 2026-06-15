@@ -36,19 +36,30 @@ struct OnlineServerInfo {
 }
 
 struct Internals {
-  m_clean_up_delay: std::time::Duration,
-  m_date_for_next_clean_up: std::time::Instant,
+  m_date_of_last_clean_up: std::time::Instant,
   m_online_servers: Vec<OnlineServerInfo>,
 }
 
+async fn clean_up_delay(db: &db::Client) -> std::time::Duration {
+  return std::time::Duration::from_mins(
+    app_config::get_u64(db, "game_servers.clean_up_delay.minutes", 5).await,
+  );
+}
+
 impl Internals {
-  pub fn remove_dead_servers(&mut self) {
-    let now = std::time::Instant::now();
+  pub fn online_hosts_for_protocol(
+    &self,
+    protocol_version: u64,
+  ) -> Vec<String> {
+    return self
+      .m_online_servers
+      .iter()
+      .filter(|s| s.protocol_version == protocol_version)
+      .map(|s| s.host.clone())
+      .collect();
+  }
 
-    if now < self.m_date_for_next_clean_up {
-      return;
-    }
-
+  pub fn server_clean_up(&mut self, now: &std::time::Instant) {
     fn still_valid(s: &OnlineServerInfo, now: &std::time::Instant) -> bool {
       if s.removal_date <= *now {
         tracing::info!("Removing server {}", s.id);
@@ -58,50 +69,31 @@ impl Internals {
       return true;
     }
 
-    self.m_online_servers.retain(|s| still_valid(s, &now));
-
-    self.m_date_for_next_clean_up = now + self.m_clean_up_delay;
+    self.m_online_servers.retain(|s| still_valid(s, now));
   }
 }
 
 pub struct GameServers {
-  m_db: db::Wrapper,
-  m_internals: std::sync::Mutex<Internals>,
+  m_internals: tokio::sync::RwLock<Internals>,
 }
 
 impl GameServers {
-  pub fn new(db: deadpool_postgres::Pool) -> GameServers {
-    let default_clean_up_delay = std::time::Duration::from_mins(5);
-
+  pub async fn new() -> GameServers {
     return GameServers {
-      m_db: db::Wrapper::new(db),
-      m_internals: std::sync::Mutex::new(Internals {
-        m_clean_up_delay: default_clean_up_delay,
-        m_date_for_next_clean_up: std::time::Instant::now()
-          + default_clean_up_delay,
+      m_internals: tokio::sync::RwLock::new(Internals {
+        m_date_of_last_clean_up: std::time::Instant::now(),
         m_online_servers: vec![],
       }),
     };
   }
 
-  pub fn set_clean_up_delay(&self, delay: std::time::Duration) {
-    if let Ok(ref mut internals) = self.m_internals.lock() {
-      internals.m_date_for_next_clean_up =
-        internals.m_date_for_next_clean_up - internals.m_clean_up_delay + delay;
-      internals.m_clean_up_delay = delay;
-    }
-  }
-
   /// Register a new game server, returns its token.
   pub async fn register(
     &self,
+    db: &db::Client,
     id: &str,
     description: &str,
   ) -> result::Result<String> {
-    if let Ok(ref mut internals) = self.m_internals.lock() {
-      internals.remove_dead_servers();
-    }
-
     if id
       .chars()
       .any(|c| !(c.is_ascii_alphanumeric() || c == '_' || c == '-'))
@@ -111,32 +103,35 @@ impl GameServers {
 
     let now: std::time::SystemTime = std::time::SystemTime::now();
     let token: String = token::generate_token(32)?;
-    self
-      .m_db
-      .execute_p(
-        "insert into game_server values ($1, $2, $3, $4, $5)",
-        &[&id, &token, &description, &now, &std::time::UNIX_EPOCH],
-      )
-      .await?;
+    db::execute_p(
+      db,
+      "insert into game_server values ($1, $2, $3, $4, $5)",
+      &[&id, &token, &description, &now, &std::time::UNIX_EPOCH],
+    )
+    .await?;
 
     return Ok(token);
   }
 
-  pub async fn validate_token(&self, token: &str) -> result::Result<bool> {
+  pub async fn validate_token(
+    &self,
+    db: &db::Client,
+    token: &str,
+  ) -> result::Result<bool> {
     return Ok(
-      self
-        .m_db
-        .query_one_p(
-          "select exists (select token from game_server where token = $1)",
-          &[&token],
-        )
-        .await?
-        .get(0),
+      db::query_one_p(
+        db,
+        "select exists (select token from game_server where token = $1)",
+        &[&token],
+      )
+      .await?
+      .get(0),
     );
   }
 
   pub async fn hello(
     &self,
+    db: &db::Client,
     token: &str,
     host: String,
     version: u64,
@@ -155,18 +150,19 @@ impl GameServers {
     }
 
     // Retrieve the server id from its token.
-    let id: String = self
-      .m_db
-      .query_one_p("select id from game_server where token = $1", &[&token])
-      .await?
-      .get(0);
+    let id: String = db::query_one_p(
+      db,
+      "select id from game_server where token = $1",
+      &[&token],
+    )
+    .await?
+    .get(0);
 
-    // At this point we assume the server to be legit.
+    // At this point we assume the server is legit.
 
-    let internals = &mut self.m_internals.lock()?;
-    internals.remove_dead_servers();
+    let internals = &mut self.m_internals.write().await;
 
-    let removal_delay = internals.m_clean_up_delay;
+    let removal_delay = clean_up_delay(db).await;
     let removal_date = std::time::Instant::now() + removal_delay;
 
     if let Some(ref mut info) =
@@ -190,18 +186,18 @@ impl GameServers {
   }
 
   /// List all game servers, with their availability.
-  pub async fn all(&self) -> result::Result<Vec<GameServerInfo>> {
-    let rows: Vec<tokio_postgres::Row> = self
-      .m_db
-      .query(
-        "select id, token, description, registration_date, last_seen \
+  pub async fn all(
+    &self,
+    db: &db::Client,
+  ) -> result::Result<Vec<GameServerInfo>> {
+    let rows: Vec<tokio_postgres::Row> = db::query(
+      db,
+      "select id, token, description, registration_date, last_seen \
          from game_server",
-      )
-      .await?;
+    )
+    .await?;
 
-    let internals = &mut self.m_internals.lock()?;
-    internals.remove_dead_servers();
-
+    let internals = &mut self.m_internals.read().await;
     let mut result = Vec::<GameServerInfo>::with_capacity(rows.len());
 
     for r in rows {
@@ -232,20 +228,26 @@ impl GameServers {
   }
 
   /// List available game servers supporting the given protocol.
-  pub fn online_hosts_for_protocol(
+  pub async fn online_hosts_for_protocol(
     &self,
+    db: &db::Client,
     protocol_version: u64,
   ) -> result::Result<Vec<String>> {
-    let internals = &mut self.m_internals.lock()?;
-    internals.remove_dead_servers();
+    let now = std::time::Instant::now();
 
-    return Ok(
-      internals
-        .m_online_servers
-        .iter()
-        .filter(|s| s.protocol_version == protocol_version)
-        .map(|s| s.host.clone())
-        .collect(),
-    );
+    {
+      let internals = &self.m_internals.read().await;
+      let clean_up_delay = clean_up_delay(db).await;
+
+      if internals.m_date_of_last_clean_up + clean_up_delay > now {
+        return Ok(internals.online_hosts_for_protocol(protocol_version));
+      }
+    }
+
+    let internals = &mut self.m_internals.write().await;
+    internals.server_clean_up(&now);
+    internals.m_date_of_last_clean_up = now;
+
+    return Ok(internals.online_hosts_for_protocol(protocol_version));
   }
 }

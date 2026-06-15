@@ -26,8 +26,8 @@ expect_post admin/game-features/update \
             -H "Authorization: $lead_token" \
             -H "Content-Type: application/json" \
             --data '[
-                      {"id": "feature-1", "coins": 11},
-                      {"id": "feature-2", "coins": 22}
+                      {"name": "feature-1", "coins": 11},
+                      {"name": "feature-2", "coins": 22}
                     ]' \
             -o /dev/null
 
@@ -99,8 +99,8 @@ expect_json_eq \
          {"index": 3, "coins": 30}
        ],
        "game_features": [
-         {"id": "feature-1", "coins": 11},
-         {"id": "feature-2", "coins": 22}
+         {"name": "feature-1", "coins": 11},
+         {"name": "feature-2", "coins": 22}
        ],
        "shop": [
          {"id": "product-1", "coins": 100},
@@ -125,8 +125,8 @@ expect_json_eq \
          {"index": 3, "coins": 30}
        ],
        "game_features": [
-         {"id": "feature-1", "coins": 11},
-         {"id": "feature-2", "coins": 22}
+         {"name": "feature-1", "coins": 11},
+         {"name": "feature-2", "coins": 22}
        ],
        "shop": [
          {"id": "product-1", "coins": 100},
@@ -151,8 +151,8 @@ expect_json_eq \
          {"index": 3, "coins": 30}
        ],
        "game_features": [
-         {"id": "feature-1", "coins": 11},
-         {"id": "feature-2", "coins": 22}
+         {"name": "feature-1", "coins": 11},
+         {"name": "feature-2", "coins": 22}
        ],
        "shop": [
          {"id": "product-1", "coins": 100},

@@ -7,17 +7,16 @@ use axum::response::IntoResponse;
 
 #[derive(Clone)]
 pub struct ServiceState {
-  leaders: std::sync::Arc<business::leads::Leaders>,
-  flat_config: std::sync::Arc<business::flat_client_config::Repository>,
+  db: deadpool_postgres::Pool,
 }
 
 /// Middleware to validate that the request comes from a leader.
 async fn auth(
-  state_handle: axum::extract::State<ServiceState>,
+  state: axum::extract::State<ServiceState>,
   request: axum::extract::Request,
   next: axum::middleware::Next,
 ) -> axum::response::Response<axum::body::Body> {
-  return auth::validate_request(&state_handle.0.leaders, request, next).await;
+  return auth::validate_request(&state.0.db, request, next).await;
 }
 
 /**
@@ -31,12 +30,9 @@ async fn auth(
  * }
  */
 async fn update(
-  state_handle: axum::extract::State<ServiceState>,
-  axum::response::Json(payload): axum::response::Json<serde_json::Value>,
+  state: axum::extract::State<ServiceState>,
+  axum::Json(payload): axum::Json<serde_json::Value>,
 ) -> axum::response::Response<axum::body::Body> {
-  let flat_config: &business::flat_client_config::Repository =
-    &state_handle.0.flat_config;
-
   // Iterate over payload keys and values.
   // Build a Vec<business::flat_client_config::Entry> from them.
   // Send everything to the business part.
@@ -68,7 +64,16 @@ async fn update(
     });
   }
 
-  return flat_config.batch_put(&entries).await.into_response();
+  if let Ok(mut client) = state.0.db.get().await
+    && let Ok(transaction) = client.transaction().await
+    && let Ok(_) =
+      business::flat_client_config::batch_put(&transaction, &entries).await
+    && let Ok(_) = transaction.commit().await
+  {
+    return (axum::http::StatusCode::OK).into_response();
+  }
+
+  return (axum::http::StatusCode::INTERNAL_SERVER_ERROR).into_response();
 }
 
 /**
@@ -81,26 +86,25 @@ async fn update(
  * ]
  */
 async fn erase(
-  state_handle: axum::extract::State<ServiceState>,
-  axum::response::Json(keys): axum::response::Json<Vec<String>>,
+  state: axum::extract::State<ServiceState>,
+  axum::Json(keys): axum::Json<Vec<String>>,
 ) -> business::result::Result<()> {
-  let flat_config: &business::flat_client_config::Repository =
-    &state_handle.0.flat_config;
+  let mut client: business::db::Client = state.0.db.get().await?;
+  let transaction: business::db::Transaction<'_> = client.transaction().await?;
 
-  return flat_config.batch_erase(&keys).await;
+  business::flat_client_config::batch_erase(&transaction, &keys).await?;
+
+  return Ok(transaction.commit().await?);
 }
 
 /// List all config parameters.
 async fn list(
-  state_handle: axum::extract::State<ServiceState>,
+  state: axum::extract::State<ServiceState>,
 ) -> business::result::Result<String> {
-  let flat_config: &business::flat_client_config::Repository =
-    &state_handle.0.flat_config;
-
   let mut m: std::collections::HashMap<&str, serde_json::value::Value> =
     std::collections::HashMap::new();
   let entries: Vec<business::flat_client_config::Entry> =
-    flat_config.all_entries().await?;
+    business::flat_client_config::all_entries(&state.0.db.get().await?).await?;
 
   webapi::flat_client_config::collect(&mut m, &entries)?;
 
@@ -108,14 +112,8 @@ async fn list(
 }
 
 /// Configure all routes for this service.
-pub fn route(
-  leaders: std::sync::Arc<business::leads::Leaders>,
-  flat_config: std::sync::Arc<business::flat_client_config::Repository>,
-) -> axum::Router {
-  let state = ServiceState {
-    leaders,
-    flat_config,
-  };
+pub fn route(db: deadpool_postgres::Pool) -> axum::Router {
+  let state = ServiceState { db };
 
   return axum::Router::new()
     .route("/update", axum::routing::post(update))

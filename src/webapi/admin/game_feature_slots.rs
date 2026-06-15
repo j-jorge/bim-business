@@ -4,17 +4,16 @@ use crate::webapi::admin::auth;
 
 #[derive(Clone)]
 pub struct ServiceState {
-  leaders: std::sync::Arc<business::leads::Leaders>,
-  game_feature_slots: std::sync::Arc<business::game_feature_slots::Repository>,
+  db: deadpool_postgres::Pool,
 }
 
 /// Middleware to validate that the request comes from a leader.
 async fn auth(
-  state_handle: axum::extract::State<ServiceState>,
+  state: axum::extract::State<ServiceState>,
   request: axum::extract::Request,
   next: axum::middleware::Next,
 ) -> axum::response::Response<axum::body::Body> {
-  return auth::validate_request(&state_handle.0.leaders, request, next).await;
+  return auth::validate_request(&state.0.db, request, next).await;
 }
 
 /**
@@ -28,38 +27,31 @@ async fn auth(
  * ]
  */
 async fn update(
-  state_handle: axum::extract::State<ServiceState>,
+  state: axum::extract::State<ServiceState>,
   axum::Json(slots): axum::Json<Vec<business::game_feature_slots::Slot>>,
 ) -> business::result::Result<()> {
-  let game_feature_slots: &business::game_feature_slots::Repository =
-    &state_handle.0.game_feature_slots;
+  let mut client: business::db::Client = state.0.db.get().await?;
+  let transaction: business::db::Transaction<'_> = client.transaction().await?;
 
-  return game_feature_slots.batch_put(&slots).await;
+  business::game_feature_slots::batch_put(&transaction, &slots).await?;
+
+  return Ok(transaction.commit().await?);
 }
 
 async fn list(
-  state_handle: axum::extract::State<ServiceState>,
+  state: axum::extract::State<ServiceState>,
 ) -> business::result::Result<axum::Json<Vec<business::game_feature_slots::Slot>>>
 {
-  let game_feature_slots: &business::game_feature_slots::Repository =
-    &state_handle.0.game_feature_slots;
-
   let mut slots: Vec<business::game_feature_slots::Slot> =
-    game_feature_slots.list().await?;
+    business::game_feature_slots::list(&state.0.db.get().await?).await?;
   slots.sort_by_key(|v| v.index);
 
   return Ok(axum::Json(slots));
 }
 
 /// Configure all routes for this service.
-pub fn route(
-  leaders: std::sync::Arc<business::leads::Leaders>,
-  game_feature_slots: std::sync::Arc<business::game_feature_slots::Repository>,
-) -> axum::Router {
-  let state = ServiceState {
-    leaders,
-    game_feature_slots,
-  };
+pub fn route(db: deadpool_postgres::Pool) -> axum::Router {
+  let state = ServiceState { db };
 
   return axum::Router::new()
     .route("/update", axum::routing::post(update))

@@ -4,17 +4,16 @@ use crate::webapi::admin::auth;
 
 #[derive(Clone)]
 pub struct ServiceState {
-  leaders: std::sync::Arc<business::leads::Leaders>,
-  shop: std::sync::Arc<business::shop::Shop>,
+  db: deadpool_postgres::Pool,
 }
 
 /// Middleware to validate that the request comes from a leader.
 async fn auth(
-  state_handle: axum::extract::State<ServiceState>,
+  state: axum::extract::State<ServiceState>,
   request: axum::extract::Request,
   next: axum::middleware::Next,
 ) -> axum::response::Response<axum::body::Body> {
-  return auth::validate_request(&state_handle.0.leaders, request, next).await;
+  return auth::validate_request(&state.0.db, request, next).await;
 }
 
 /**
@@ -28,18 +27,23 @@ async fn auth(
  * ]
  */
 async fn update(
-  state_handle: axum::extract::State<ServiceState>,
+  state: axum::extract::State<ServiceState>,
   axum::Json(products): axum::Json<Vec<business::shop::Product>>,
 ) -> business::result::Result<()> {
-  return state_handle.0.shop.batch_put(&products).await;
+  let mut client: business::db::Client = state.0.db.get().await?;
+  let transaction: business::db::Transaction<'_> = client.transaction().await?;
+
+  business::shop::batch_put(&transaction, &products).await?;
+
+  return Ok(transaction.commit().await?);
 }
 
 /// List all shop products.
 async fn list(
-  state_handle: axum::extract::State<ServiceState>,
+  state: axum::extract::State<ServiceState>,
 ) -> business::result::Result<axum::Json<Vec<business::shop::Product>>> {
   let mut products: Vec<business::shop::Product> =
-    state_handle.0.shop.list().await?;
+    business::shop::list(&state.0.db.get().await?).await?;
 
   products.sort_by_key(|v| v.coins);
 
@@ -47,11 +51,8 @@ async fn list(
 }
 
 /// Configure all routes for this service.
-pub fn route(
-  leaders: std::sync::Arc<business::leads::Leaders>,
-  shop: std::sync::Arc<business::shop::Shop>,
-) -> axum::Router {
-  let state = ServiceState { leaders, shop };
+pub fn route(db: deadpool_postgres::Pool) -> axum::Router {
+  let state = ServiceState { db };
 
   return axum::Router::new()
     .route("/update", axum::routing::post(update))

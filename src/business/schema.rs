@@ -3,16 +3,21 @@ use super::*;
 
 /// Update the tables to match the state required by the current code.
 pub async fn migrate_database(
-  mut client: deadpool_postgres::Object,
+  client: &mut db::Client,
+  assets: &std::path::Path,
 ) -> result::Result<()> {
+  // Wrap the operations in a transaction such that we can apply
+  // them all at once, thus avoiding a partial modification if
+  // something fails.
+  let t: db::Transaction<'_> = client.transaction().await?;
+
   // We are keeping the current version of the schema into a
   // specific table which will have a single row (or none on
   // creation) with the version number.
-  client
-    .batch_execute("create table if not exists meta_version (value integer)")
+  t.batch_execute("create table if not exists meta_version (value integer)")
     .await?;
 
-  let version_row: Option<tokio_postgres::Row> = client
+  let version_row: Option<tokio_postgres::Row> = t
     .query_opt("select value from meta_version", &[])
     .await
     .unwrap();
@@ -26,69 +31,25 @@ pub async fn migrate_database(
     return Ok(());
   }
 
-  // Wrap the operations in a transaction such that we can apply
-  // them all at once, thus avoiding a partial modification if
-  // something fails.
-  let t: deadpool_postgres::Transaction<'_> = client.transaction().await?;
-
   if table_version == 0 {
-    println!("Upgrading tables to 1.");
+    tracing::info!("Upgrading tables to 1.");
 
-    t.batch_execute(
-      r"
-create table flat_client_config
-(
-  key text primary key,
-  type smallint,
-  int64_value bigint,
-  text_value text
-);
-
-create table leads (token text unique);
-
-create table game_feature
-(
-  id text primary key,
-  cost_in_coins integer
-);
-
-create table game_server
-(
-  id text primary key,
-  token text unique,
-  description text,
-  registration_date timestamp,
-  last_seen timestamp
-);
-
-create table shop (id text primary key, coins integer);
-",
-    )
-    .await?;
+    t.batch_execute(&std::fs::read_to_string(assets.join("db/1.sql"))?)
+      .await?;
   }
 
   if table_version <= 1 {
-    println!("Upgrading tables to 2.");
+    tracing::info!("Upgrading tables to 2.");
 
-    t.batch_execute(
-      r"
-create table game_feature_slot
-(
-  index integer primary key,
-  cost_in_coins integer
-);
-alter table meta_version add date timestamp;
-
-",
-    )
-    .await?;
+    t.batch_execute(&std::fs::read_to_string(assets.join("db/2.sql"))?)
+      .await?;
   }
 
   // Update the schema version too, in the same transaction.
   t.batch_execute(r"truncate table meta_version;").await?;
   t.execute(
     r"
-insert into meta_version (value, date) values ($1, '2026-06-8 00:00:00');
+insert into meta_version (value, date) values ($1, '2026-06-15 00:00:00');
 ",
     &[&CURRENT_VERSION],
   )

@@ -32,6 +32,10 @@ struct Arguments {
   /// the file from which to read the secrets.
   #[argh(option)]
   secrets: std::path::PathBuf,
+
+  /// the directory with the assets.
+  #[argh(option)]
+  assets: std::path::PathBuf,
 }
 
 #[derive(serde::Deserialize)]
@@ -82,63 +86,55 @@ async fn main() -> Result<()> {
     )
     .context("failed to create Postgres connection pool")?;
 
-  business::schema::migrate_database(pool.get().await?)
+  business::schema::migrate_database(&mut pool.get().await?, &arguments.assets)
     .await
     .context("failed to migrate the database: {}")?;
 
-  let leads = std::sync::Arc::new(business::leads::Leaders::new(pool.clone()));
-  let flat_client_config = std::sync::Arc::new(
-    business::flat_client_config::Repository::new(pool.clone()),
-  );
-  let game_feature_slots = std::sync::Arc::new(
-    business::game_feature_slots::Repository::new(pool.clone()),
-  );
-  let game_features =
-    std::sync::Arc::new(business::game_features::Repository::new(pool.clone()));
   let game_servers =
-    std::sync::Arc::new(business::game_servers::GameServers::new(pool.clone()));
-  let shop = std::sync::Arc::new(business::shop::Shop::new(pool));
+    std::sync::Arc::new(business::game_servers::GameServers::new().await);
+  let session_service = std::sync::Arc::new(business::sessions::Service::new());
 
   // Register the web services.
   let router = axum::Router::new()
     .nest(
       "/admin/flat-client-config",
-      webapi::admin::flat_client_config::route(
-        leads.clone(),
-        flat_client_config.clone(),
-      ),
+      webapi::admin::flat_client_config::route(pool.clone()),
     )
     .nest(
+      "/admin/app-config",
+      webapi::admin::app_config::route(pool.clone()),
+    )
+    .nest("/admin/users", webapi::admin::users::route(pool.clone()))
+    .nest(
       "/admin/game-feature-slots",
-      webapi::admin::game_feature_slots::route(
-        leads.clone(),
-        game_feature_slots.clone(),
-      ),
+      webapi::admin::game_feature_slots::route(pool.clone()),
     )
     .nest(
       "/admin/game-features",
-      webapi::admin::game_features::route(leads.clone(), game_features.clone()),
+      webapi::admin::game_features::route(pool.clone()),
     )
     .nest(
       "/admin/game-servers",
-      webapi::admin::game_servers::route(leads.clone(), game_servers.clone()),
+      webapi::admin::game_servers::route(game_servers.clone(), pool.clone()),
     )
-    .nest("/admin/leads", webapi::admin::leads::route(leads.clone()))
-    .nest(
-      "/admin/shop",
-      webapi::admin::shop::route(leads, shop.clone()),
-    )
+    .nest("/admin/leads", webapi::admin::leads::route(pool.clone()))
+    .nest("/admin/shop", webapi::admin::shop::route(pool.clone()))
     .nest(
       "/client/config",
-      webapi::client::config::route(
-        flat_client_config,
-        game_feature_slots,
-        game_features,
-        game_servers.clone(),
-        shop,
-      ),
+      webapi::client::config::route(game_servers.clone(), pool.clone()),
     )
-    .nest("/gs/hello", webapi::gs::hello::route(game_servers))
+    .nest(
+      "/client",
+      webapi::client::account::route(session_service.clone(), pool.clone()),
+    )
+    .nest(
+      "/gs/hello",
+      webapi::gs::hello::route(game_servers.clone(), pool.clone()),
+    )
+    .nest(
+      "/gs/",
+      webapi::gs::users::route(game_servers.clone(), pool.clone()),
+    )
     .layer(tower_http::trace::TraceLayer::new_for_http());
 
   // And finally, launch the server.

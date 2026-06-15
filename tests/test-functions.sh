@@ -278,6 +278,7 @@ EOF
 
         # Now that he database is up the server can start.
         "$_server_binary" \
+            --assets "$repo_root"/assets \
             --port "$app_port" \
             --db-port "$_db_port" \
             --db-name "$_db_name" \

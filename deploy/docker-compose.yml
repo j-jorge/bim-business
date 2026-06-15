@@ -35,6 +35,7 @@ services:
       - ${BIM_PORT}:4209
     user: ${UID}:${GID}
     volumes:
+      - ./bim/assets:/opt/bim/assets:ro
       - ./bim/bin:/opt/bim/bin:ro
       - ./bim/etc:/opt/bim/etc:ro
       - ./bim/host:/opt/bim/host
@@ -48,6 +49,7 @@ services:
     # running Postgres.
     command: >
       /opt/bim/bin/bim-business-launcher.sh
+      --assets /opt/bim/assets
       --port 4209
       --db-host db
       --db-port 5432
