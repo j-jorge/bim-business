@@ -19,6 +19,8 @@ Where OPTIONS are:
      Port on which Postgres will listen. Default is $_db_port.
   --port PORT
      Port on which the app will listen. Default is $app_port.
+  --workspace DIR
+     Where to put the files produced by the tests.
   -h, --help
      Display this message and exit.
 EOF
@@ -63,6 +65,16 @@ do
             app_port="$1"
             shift
             ;;
+        --workspace)
+            if [[ $# -eq 0 ]]
+            then
+                echo "Missing value for --workspace." >&2
+                exit 1
+            fi
+
+            _workspace="$1"
+            shift
+            ;;
         *)
             echo "Unsupported argument '$arg'." >&2
             exit 1
@@ -86,7 +98,14 @@ _server_binary="$repo_root"/target/"$build_type"/bim-business
 . "$_test_functions_script_dir"/testlib.sh
 
 # Temporary directory usable by the tests.
-tmp_dir="$(mktemp --directory)"
+if [[ -z "${_workspace:-}" ]]
+then
+    tmp_dir="$(mktemp --directory)"
+else
+    tmp_dir="$(readlink --canonicalize "$_workspace")"
+    tmp_dir+="/$test_name"
+    mkdir --parents "$tmp_dir"
+fi
 
 # This is the service exposed when _server_binary is started.
 _service="http://localhost:$app_port"
