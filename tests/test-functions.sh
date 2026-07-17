@@ -107,6 +107,9 @@ else
     mkdir --parents "$tmp_dir"
 fi
 
+_db_name=test-db
+_db_user=postgres_user
+
 # This is the service exposed when _server_binary is started.
 _service="http://localhost:$app_port"
 
@@ -127,12 +130,12 @@ _kill_services()
         ! kill -0 "$_server_pid" || kill -9 "$_server_pid"
     fi
 
-    if [[ "${_container_name:-}" = "" ]]
+    if [[ "${_db_container_name:-}" = "" ]]
     then
         info "Container not started, nothing to stop."
     else
-        info "Stopping container '${_container_name}'."
-        docker stop "$_container_name"
+        info "Stopping container '${_db_container_name}'."
+        docker stop "$_db_container_name"
     fi
 }
 
@@ -247,13 +250,12 @@ wait_server_ready()
 
 start_server()
 {
-    _db_user=postgres_user
     _db_password=postgres_password
-    _db_name=test-db
 
     # Start the database and wait for it to be up and ready.
-    _container_name="test-$(echo -n "$test_name" | tr -c 'a-zA-Z0-9_.\-' '.')"
-    docker run --rm --name "$_container_name" \
+    _db_container_name="test-$(echo -n "$test_name" \
+                                    | tr -c 'a-zA-Z0-9_.\-' '.')"
+    docker run --rm --name "$_db_container_name" \
            --env POSTGRES_USER="$_db_user" \
            --env POSTGRES_PASSWORD="$_db_password" \
            --env POSTGRES_DB="$_db_name" \
@@ -371,4 +373,29 @@ expect_get_error()
 expect_post_error()
 {
     _expect_curl_error "$@" --request POST
+}
+
+# Run a request against the database.
+expect_db()
+{
+    set +e
+    docker exec "$_db_container_name" \
+           psql \
+           --dbname "$_db_name" \
+           --port "$_db_port" \
+           --username "$_db_user" \
+           --command "$1" \
+           > "$2"
+    local e=$?
+    set -e
+
+    if (( e != 0 ))
+    then
+        fail_count=$((fail_count + 1))
+        fail "$1"
+        fail "Request failed. Exit code is $e."
+        cat "$2" >&2
+    else
+        pass "$1"
+    fi
 }
