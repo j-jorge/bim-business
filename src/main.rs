@@ -88,11 +88,12 @@ async fn main() -> Result<()> {
 
   business::schema::migrate_database(&mut pool.get().await?, &arguments.assets)
     .await
-    .context("failed to migrate the database: {}")?;
+    .context("failed to migrate the database.")?;
 
   let game_servers =
-    std::sync::Arc::new(business::game_servers::GameServers::new().await);
+    std::sync::Arc::new(business::game_servers::GameServers::new());
   let session_service = std::sync::Arc::new(business::sessions::Service::new());
+  let games = std::sync::Arc::new(business::games::Service::new());
 
   // Register the web services.
   let router = axum::Router::new()
@@ -128,13 +129,14 @@ async fn main() -> Result<()> {
       webapi::client::account::route(session_service.clone(), pool.clone()),
     )
     .nest(
-      "/gs/hello",
-      webapi::gs::hello::route(game_servers.clone(), pool.clone()),
+      "/gs/",
+      webapi::gs::games::route(games.clone(), pool.clone()),
     )
     .nest(
       "/gs/",
-      webapi::gs::users::route(game_servers.clone(), pool.clone()),
+      webapi::gs::hello::route(game_servers.clone(), pool.clone()),
     )
+    .nest("/gs/", webapi::gs::users::route(pool.clone()))
     .layer(tower_http::trace::TraceLayer::new_for_http());
 
   // And finally, launch the server.

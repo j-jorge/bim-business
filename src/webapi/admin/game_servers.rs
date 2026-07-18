@@ -19,7 +19,7 @@ async fn auth(
 
 #[derive(serde::Deserialize)]
 struct RegisterRequest {
-  id: String,
+  name: String,
   description: String,
 }
 
@@ -29,25 +29,34 @@ struct RegisterRequest {
  *
  * Example:
  * {
- *   "id": "my-game-server",
+ *   "name": "my-game-server",
  *   "description": "Some description."
  * }
  *
  * Response:
- * "some-token"
+ * {
+ *   "id": 123,
+ *   "token": "some-token"
+ * }
  */
 async fn register(
   state: axum::extract::State<ServiceState>,
   axum::Json(request): axum::Json<RegisterRequest>,
-) -> business::result::Result<axum::Json<String>> {
+) -> business::result::Result<
+  axum::Json<business::game_servers::RegistrationResult>,
+> {
   let game_servers: &business::game_servers::GameServers =
     &state.0.game_servers;
 
-  let token: String = game_servers
-    .register(&state.0.db.get().await?, &request.id, &request.description)
+  let r: business::game_servers::RegistrationResult = game_servers
+    .register(
+      &state.0.db.get().await?,
+      &request.name,
+      &request.description,
+    )
     .await?;
 
-  return Ok(axum::Json(token));
+  return Ok(axum::Json(r));
 }
 
 /// List all game servers. This requires an administrator.

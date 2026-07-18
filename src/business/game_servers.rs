@@ -9,6 +9,12 @@ use std::str::FromStr;
 // availability.
 
 #[derive(serde::Serialize)]
+pub struct RegistrationResult {
+  id: i64,
+  token: String,
+}
+
+#[derive(serde::Serialize)]
 pub struct ServerDeclaredInfo {
   pub host: String,
   pub version: u64,
@@ -17,7 +23,8 @@ pub struct ServerDeclaredInfo {
 
 #[derive(serde::Serialize)]
 pub struct GameServerInfo {
-  pub id: String,
+  pub id: i64,
+  pub name: String,
   pub token: String,
   pub description: String,
   pub registration_date: chrono::DateTime<chrono::Utc>,
@@ -28,7 +35,7 @@ pub struct GameServerInfo {
 
 #[derive(Debug)]
 struct OnlineServerInfo {
-  pub id: String,
+  pub id: i64,
   pub host: String,
   pub version: u64,
   pub protocol_version: u64,
@@ -42,7 +49,7 @@ struct Internals {
 
 async fn clean_up_delay(db: &db::Client) -> std::time::Duration {
   return std::time::Duration::from_mins(
-    app_config::get_u64(db, "game_servers.clean_up_delay.minutes", 5).await,
+    app_config::get_u64(db, "game_servers.clean_up_interval.minutes", 5).await,
   );
 }
 
@@ -62,7 +69,7 @@ impl Internals {
   pub fn server_clean_up(&mut self, now: &std::time::Instant) {
     fn still_valid(s: &OnlineServerInfo, now: &std::time::Instant) -> bool {
       if s.removal_date <= *now {
-        tracing::info!("Removing server {}", s.id);
+        tracing::info!("Removing server {}.", s.id);
         return false;
       }
 
@@ -78,7 +85,7 @@ pub struct GameServers {
 }
 
 impl GameServers {
-  pub async fn new() -> GameServers {
+  pub fn new() -> GameServers {
     return GameServers {
       m_internals: tokio::sync::RwLock::new(Internals {
         m_date_of_last_clean_up: std::time::Instant::now(),
@@ -91,48 +98,28 @@ impl GameServers {
   pub async fn register(
     &self,
     db: &db::Client,
-    id: &str,
+    name: &str,
     description: &str,
-  ) -> result::Result<String> {
-    if id
-      .chars()
-      .any(|c| !(c.is_ascii_alphanumeric() || c == '_' || c == '-'))
-    {
-      return Err(error::Error::BadParameter);
-    }
-
+  ) -> result::Result<RegistrationResult> {
     let now: std::time::SystemTime = std::time::SystemTime::now();
     let token: String = token::generate_token(32)?;
-    db::execute_p(
+    let id: i64 = db::query_one_p(
       db,
-      "insert into game_server values ($1, $2, $3, $4, $5)",
-      &[&id, &token, &description, &now, &std::time::UNIX_EPOCH],
+      "insert into game_server
+       values ($1, $2, $3, $4, $5, default)
+       returning id",
+      &[&name, &token, &description, &now, &std::time::UNIX_EPOCH],
     )
-    .await?;
+    .await?
+    .get(0);
 
-    return Ok(token);
-  }
-
-  pub async fn validate_token(
-    &self,
-    db: &db::Client,
-    token: &str,
-  ) -> result::Result<bool> {
-    return Ok(
-      db::query_one_p(
-        db,
-        "select exists (select token from game_server where token = $1)",
-        &[&token],
-      )
-      .await?
-      .get(0),
-    );
+    return Ok(RegistrationResult { id, token });
   }
 
   pub async fn hello(
     &self,
     db: &db::Client,
-    token: &str,
+    id: i64,
     host: String,
     version: u64,
     protocol_version: u64,
@@ -149,17 +136,6 @@ impl GameServers {
       return Err(error::Error::BadParameter);
     }
 
-    // Retrieve the server id from its token.
-    let id: String = db::query_one_p(
-      db,
-      "select id from game_server where token = $1",
-      &[&token],
-    )
-    .await?
-    .get(0);
-
-    // At this point we assume the server is legit.
-
     let internals = &mut self.m_internals.write().await;
 
     let removal_delay = clean_up_delay(db).await;
@@ -173,6 +149,7 @@ impl GameServers {
       info.protocol_version = protocol_version;
       info.removal_date = removal_date;
     } else {
+      tracing::info!("Adding server {}.", id);
       internals.m_online_servers.push(OnlineServerInfo {
         id,
         host,
@@ -192,7 +169,7 @@ impl GameServers {
   ) -> result::Result<Vec<GameServerInfo>> {
     let rows: Vec<tokio_postgres::Row> = db::query(
       db,
-      "select id, token, description, registration_date, last_seen \
+      "select id, name, token, description, registration_date, last_seen \
          from game_server",
     )
     .await?;
@@ -201,7 +178,7 @@ impl GameServers {
     let mut result = Vec::<GameServerInfo>::with_capacity(rows.len());
 
     for r in rows {
-      let id: String = r.get(0);
+      let id: i64 = r.get(0);
       let mut info: Option<ServerDeclaredInfo> = None;
 
       if let Some(i) = internals.m_online_servers.iter().find(|e| e.id == id) {
@@ -212,13 +189,14 @@ impl GameServers {
         });
       }
 
-      let registration_date: std::time::SystemTime = r.get(3);
-      let last_seen: std::time::SystemTime = r.get(4);
+      let registration_date: std::time::SystemTime = r.get(4);
+      let last_seen: std::time::SystemTime = r.get(5);
 
       result.push(GameServerInfo {
         id,
-        token: r.get(1),
-        description: r.get(2),
+        name: r.get(1),
+        token: r.get(2),
+        description: r.get(3),
         registration_date: registration_date.into(),
         last_seen: last_seen.into(),
         info,
@@ -250,4 +228,23 @@ impl GameServers {
 
     return Ok(internals.online_hosts_for_protocol(protocol_version));
   }
+}
+
+pub async fn validate_token(
+  db: &db::Client,
+  token: &str,
+) -> result::Result<Option<i64>> {
+  let row_opt: Option<tokio_postgres::Row> = db::query_opt_p(
+    db,
+    "select id from game_server where token = $1",
+    &[&token],
+  )
+  .await?;
+
+  if let Some(row) = row_opt {
+    let id: i64 = row.get(0);
+    return Ok(Some(id));
+  }
+
+  return Ok(None);
 }

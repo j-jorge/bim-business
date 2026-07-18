@@ -17,9 +17,9 @@ admin_token="$(jq -r . "$tmp_dir"/lead.json)"
 expect_post admin/game-servers/register \
             -H "Authorization: $admin_token" \
             -H "Content-Type: application/json" \
-            --data '{"id": "gs", "description": "..."}' \
+            --data '{"name": "gs", "description": "..."}' \
             -o "$tmp_dir"/"gs-1.json"
-gs_token="$(jq -r . "$tmp_dir"/gs-1.json)"
+gs_token="$(jq -r .token "$tmp_dir"/gs-1.json)"
 
 # Authenticate a client.
 expect_post client/authenticate \

@@ -1,2 +1,5 @@
 [default.extend-words]
 clonable = "clonable" # is valid https://en.wiktionary.org/wiki/clonable
+
+[files]
+extend-exclude = ["src/business/bot_names.rs"]

@@ -50,16 +50,16 @@ expect_post admin/game-feature-slots/update \
 expect_post admin/game-servers/register \
             -H "Authorization: $lead_token" \
             -H "Content-Type: application/json" \
-            --data '{"id": "server-1", "description": "Test server 1."}' \
+            --data '{"name": "server-1", "description": "Test server 1."}' \
             -o "$tmp_dir"/"game-server-1.json"
-gs_token_1="$(jq -r . "$tmp_dir"/game-server-1.json)"
+gs_token_1="$(jq -r .token "$tmp_dir"/game-server-1.json)"
 
 expect_post admin/game-servers/register \
             -H "Authorization: $lead_token" \
             -H "Content-Type: application/json" \
-            --data '{"id": "server-2", "description": "Test server 2."}' \
+            --data '{"name": "server-2", "description": "Test server 2."}' \
             -o "$tmp_dir"/"game-server-2.json"
-gs_token_2="$(jq -r . "$tmp_dir"/game-server-2.json)"
+gs_token_2="$(jq -r .token "$tmp_dir"/game-server-2.json)"
 
 # The game servers must be alive to appear in the configuration.
 expect_post gs/hello \

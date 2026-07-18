@@ -3,11 +3,7 @@ use crate::business;
 use crate::webapi::gs::auth;
 use axum::response::IntoResponse;
 
-#[derive(Clone)]
-pub struct StateHandle {
-  game_servers: std::sync::Arc<business::game_servers::GameServers>,
-  db: deadpool_postgres::Pool,
-}
+type StateHandle = deadpool_postgres::Pool;
 
 /// Middleware to validate that the request comes from a known game server.
 async fn auth(
@@ -15,13 +11,7 @@ async fn auth(
   request: axum::extract::Request,
   next: axum::middleware::Next,
 ) -> axum::response::Response<axum::body::Body> {
-  return auth::validate_request(
-    &state.0.game_servers,
-    &state.0.db,
-    request,
-    next,
-  )
-  .await;
+  return auth::validate_request(&state.0, request, next).await;
 }
 
 #[derive(serde::Deserialize)]
@@ -38,7 +28,7 @@ async fn user_id(
   state: axum::extract::State<StateHandle>,
   axum::Json(request): axum::Json<UserIdRequest>,
 ) -> axum::response::Response<axum::body::Body> {
-  if let Ok(db) = state.0.db.get().await
+  if let Ok(db) = state.0.get().await
     && let Ok(option) =
       business::sessions::to_user_id(&db, &request.session_token).await
   {
@@ -59,14 +49,9 @@ async fn user_id(
 }
 
 /// Configure all routes for this service.
-pub fn route(
-  game_servers: std::sync::Arc<business::game_servers::GameServers>,
-  db: deadpool_postgres::Pool,
-) -> axum::Router {
-  let state = StateHandle { game_servers, db };
-
+pub fn route(db: deadpool_postgres::Pool) -> axum::Router {
   return axum::Router::new()
     .route("/user-id", axum::routing::post(user_id))
-    .route_layer(axum::middleware::from_fn_with_state(state.clone(), auth))
-    .with_state(state);
+    .route_layer(axum::middleware::from_fn_with_state(db.clone(), auth))
+    .with_state(db);
 }

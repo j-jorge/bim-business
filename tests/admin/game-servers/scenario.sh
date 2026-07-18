@@ -22,7 +22,7 @@ expect_post admin/app-config/update \
             -H "Authorization: $admin_token" \
             -H "Content-Type: application/json" \
             --data '[{
-                       "key": "game_servers.clean_up_delay.minutes",
+                       "key": "game_servers.clean_up_interval.minutes",
                        "value": "0"
                     }]'
 
@@ -30,39 +30,21 @@ expect_post admin/app-config/update \
 expect_post admin/game-servers/register \
             -H "Authorization: $admin_token" \
             -H "Content-Type: application/json" \
-            --data '{"id": "valid-server", "description": "Some server."}' \
+            --data '{"name": "valid-server", "description": "Some server."}' \
             -o "$tmp_dir"/"register-1.json"
-gs_token="$(jq -r . "$tmp_dir"/register-1.json)"
+gs_token_1="$(jq -r .token "$tmp_dir"/register-1.json)"
+gs_id_1="$(jq -r .id "$tmp_dir"/register-1.json)"
 
-expect_ne "" "$gs_token"
-
-# Registering the same server ID twice should fail.
-expect_post_error 409 admin/game-servers/register \
-                  -H "Authorization: $admin_token" \
-                  -H "Content-Type: application/json" \
-                  --data '{"id": "valid-server", "description": "Some server."}'
+expect_ne "" "$gs_token_1"
 
 # Create a token for another game server.
 expect_post admin/game-servers/register \
             -H "Authorization: $admin_token" \
             -H "Content-Type: application/json" \
-            --data '{"id": "other-server", "description": "Other server."}' \
+            --data '{"name": "other-server", "description": "Other server."}' \
             -o "$tmp_dir"/"register-2.json"
-gs_token_2="$(jq -r . "$tmp_dir"/register-2.json)"
-
-# A bunch of invalid IDs.
-expect_post_error 400 admin/game-servers/register \
-                  -H "Authorization: $admin_token" \
-                  -H "Content-Type: application/json" \
-                  --data '{"id": "some server", "description": "..."}'
-expect_post_error 400 admin/game-servers/register \
-                  -H "Authorization: $admin_token" \
-                  -H "Content-Type: application/json" \
-                  --data '{"id": "some%server", "description": "..."}'
-expect_post_error 400 admin/game-servers/register \
-                  -H "Authorization: $admin_token" \
-                  -H "Content-Type: application/json" \
-                  --data '{"id": "s¤me server", "description": "..."}'
+gs_token_2="$(jq -r .token "$tmp_dir"/register-2.json)"
+gs_id_2="$(jq -r .id "$tmp_dir"/register-2.json)"
 
 # Get the list of registered servers.
 expect_get admin/game-servers/list \
@@ -78,14 +60,16 @@ sed 's/\(registration_date":"\)[^"]\+/\1placeholder/g' \
 expect_json_eq \
     '[
        {
-         "id": "valid-server",
+         "id": '"$gs_id_1"',
+         "name": "valid-server",
          "description": "Some server.",
-         "token": "'"$gs_token"'",
+         "token": "'"$gs_token_1"'",
          "last_seen": "1970-01-01T00:00:00Z",
          "registration_date": "placeholder"
        },
        {
-         "id": "other-server",
+         "id": '"$gs_id_2"',
+         "name": "other-server",
          "description": "Other server.",
          "token": "'"$gs_token_2"'",
          "last_seen": "1970-01-01T00:00:00Z",
@@ -129,7 +113,7 @@ expect_json_eq '{"callback_delay_seconds":"placeholder"}' \
 # This one sends incomplete information.
 expect_post_error 422 gs/hello \
                   -H "Content-Type: application/json" \
-                  -H "Authorization: $gs_token" \
+                  -H "Authorization: $gs_token_1" \
                   --data \
                   '{
                      "host": "localhost:1234",
@@ -148,7 +132,7 @@ expect_post_error 401 gs/hello \
 # This one has an invalid host.
 expect_post_error 400 gs/hello \
             -H "Content-Type: application/json" \
-            -H "Authorization: $gs_token" \
+            -H "Authorization: $gs_token_1" \
             --data \
             '{
                "host": "localhost:123456",
@@ -165,14 +149,16 @@ sed 's/\(registration_date":"\|last_seen":"\)[^"]\+/\1placeholder/g' \
 expect_json_eq \
     '[
        {
-         "id": "valid-server",
+         "id": '"$gs_id_1"',
+         "name": "valid-server",
          "description": "Some server.",
-         "token": "'"$gs_token"'",
+         "token": "'"$gs_token_1"'",
          "last_seen": "placeholder",
          "registration_date": "placeholder"
        },
        {
-         "id": "other-server",
+         "id": '"$gs_id_2"',
+         "name": "other-server",
          "description": "Other server.",
          "token": "'"$gs_token_2"'",
          "last_seen": "placeholder",
@@ -206,14 +192,16 @@ sed 's/\(registration_date":"\|last_seen":"\)[^"]\+/\1placeholder/g' \
 expect_json_eq \
     '[
        {
-         "id": "valid-server",
+         "id": '"$gs_id_1"',
+         "name": "valid-server",
          "description": "Some server.",
-         "token": "'"$gs_token"'",
+         "token": "'"$gs_token_1"'",
          "last_seen": "placeholder",
          "registration_date": "placeholder"
        },
        {
-         "id": "other-server",
+         "id": '"$gs_id_2"',
+         "name": "other-server",
          "description": "Other server.",
          "token": "'"$gs_token_2"'",
          "last_seen": "placeholder",

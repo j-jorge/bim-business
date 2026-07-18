@@ -28,7 +28,7 @@ expect_post admin/app-config/update \
             --header "Authorization: $admin_token" \
             --header "Content-Type: application/json" \
             --data '[{
-                       "key": "sessions.clean_up_delay.minutes",
+                       "key": "sessions.clean_up_interval.minutes",
                        "value": "0"
                     }]'
 
@@ -39,6 +39,8 @@ expect_post client/authenticate \
             -o "$tmp_dir"/authenticate-1.json
 session_token_1="$(jq -r .session_token "$tmp_dir"/authenticate-1.json)"
 user_id_1="$(jq -r .user_id "$tmp_dir"/authenticate-1.json)"
+
+expect_db_row_exists "select * from sessions where token = '$session_token_1'"
 
 # Second client will have very short-living session, to test that
 # expired sessions are removed.
@@ -57,6 +59,9 @@ expect_post client/authenticate \
             -o "$tmp_dir"/authenticate-2.json
 session_token_2="$(jq -r .session_token "$tmp_dir"/authenticate-2.json)"
 user_id_2="$(jq -r .user_id "$tmp_dir"/authenticate-2.json)"
+
+expect_db_row_exists "select * from sessions where token = '$session_token_1'"
+expect_db_row_exists "select * from sessions where token = '$session_token_2'"
 
 expect_ne "$session_token_1" "$session_token_2"
 expect_ne "$user_id_1" "$user_id_2"
@@ -80,6 +85,9 @@ expect_post client/authenticate \
             -o "$tmp_dir"/authenticate-4.json
 session_token_2b="$(jq -r .session_token "$tmp_dir"/authenticate-4.json)"
 user_id_2b="$(jq -r .user_id "$tmp_dir"/authenticate-4.json)"
+
+expect_db_row_absent "select * from sessions where token = '$session_token_2'"
+expect_db_row_exists "select * from sessions where token = '$session_token_2b'"
 
 expect_ne "$session_token_1b" "$session_token_2b"
 expect_ne "$session_token_2" "$session_token_2b"

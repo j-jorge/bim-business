@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+mod bot_names;
+mod bots;
 mod token;
 
 pub mod app_config;
@@ -8,6 +10,7 @@ pub mod flat_client_config;
 pub mod game_feature_slots;
 pub mod game_features;
 pub mod game_servers;
+pub mod games;
 pub mod inventory;
 pub mod leads;
 pub mod legacy;

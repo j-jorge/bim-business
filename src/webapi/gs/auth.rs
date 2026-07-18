@@ -5,18 +5,19 @@ use axum::response::IntoResponse;
 
 /// Middleware to validate that the request comes from a game server.
 pub async fn validate_request(
-  game_servers: &business::game_servers::GameServers,
   db_pool: &deadpool_postgres::Pool,
-  request: axum::extract::Request,
+  mut request: axum::extract::Request,
   next: axum::middleware::Next,
 ) -> axum::response::Response<axum::body::Body> {
   if let Some(header) = request.headers().get(axum::http::header::AUTHORIZATION)
     && let Ok(token_str) = header.to_str()
   {
     if let Ok(db) = db_pool.get().await
-      && let Ok(valid) = game_servers.validate_token(&db, token_str).await
+      && let Ok(server_id_opt) =
+        business::game_servers::validate_token(&db, token_str).await
     {
-      if valid {
+      if let Some(server_id) = server_id_opt {
+        request.extensions_mut().insert(server_id);
         return next.run(request).await;
       }
 

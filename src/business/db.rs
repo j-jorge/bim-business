@@ -2,6 +2,7 @@
 use super::*;
 
 pub type Client = deadpool_postgres::Client;
+pub type Pool = deadpool_postgres::Pool;
 pub type Transaction<'a> = deadpool_postgres::Transaction<'a>;
 
 pub async fn execute_p(

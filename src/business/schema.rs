@@ -25,31 +25,27 @@ pub async fn migrate_database(
     None => 0,
     Some(r) => r.get(0),
   };
-  const CURRENT_VERSION: i32 = 2;
+  const CURRENT_VERSION: i32 = 3;
 
   if table_version == CURRENT_VERSION {
     return Ok(());
   }
 
-  if table_version == 0 {
-    tracing::info!("Upgrading tables to 1.");
+  for i in table_version..CURRENT_VERSION {
+    let n = i + 1;
+    tracing::info!("Upgrading tables to {n}.");
 
-    t.batch_execute(&std::fs::read_to_string(assets.join("db/1.sql"))?)
-      .await?;
-  }
-
-  if table_version <= 1 {
-    tracing::info!("Upgrading tables to 2.");
-
-    t.batch_execute(&std::fs::read_to_string(assets.join("db/2.sql"))?)
-      .await?;
+    t.batch_execute(&std::fs::read_to_string(
+      assets.join(format!("db/{}.sql", n)),
+    )?)
+    .await?;
   }
 
   // Update the schema version too, in the same transaction.
   t.batch_execute(r"truncate table meta_version;").await?;
   t.execute(
-    r"
-insert into meta_version (value, date) values ($1, '2026-06-15 00:00:00');
+    r"insert into meta_version (value, date)
+      values ($1, '2026-07-17 00:00:00');
 ",
     &[&CURRENT_VERSION],
   )
