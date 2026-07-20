@@ -386,6 +386,7 @@ expect_db()
            --port "$_db_port" \
            --username "$_db_user" \
            --command "$1" \
+           --expanded \
            > "$2"
     local e=$?
     set -e

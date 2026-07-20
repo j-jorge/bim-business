@@ -121,9 +121,18 @@ expect_json_eq '{"transfer_state": 1}' "$tmp_dir"/transfer-2.json
 
 expect_db "select * from user_arena_statistics;" "$tmp_dir"/db-user-stats-2.txt
 expect_true grep --quiet \
-            ' *'"$user_id"' *| *200 *| *100 *| *50 *$' \
+            '^user_id *| *'"$user_id"'$' \
             "$tmp_dir"/db-user-stats-2.txt
-expect_true grep --quiet '(1 row)' "$tmp_dir"/db-user-stats-2.txt
+expect_true grep --quiet \
+            '^game_count *| *200$' \
+            "$tmp_dir"/db-user-stats-2.txt
+expect_true grep --quiet \
+            '^victories *| *100$' \
+            "$tmp_dir"/db-user-stats-2.txt
+expect_true grep --quiet \
+            '^defeats *| *50$' \
+            "$tmp_dir"/db-user-stats-2.txt
+expect_eval_eq 1 "grep --count '^user_id' '$tmp_dir'/db-user-stats-2.txt"
 
 expect_post client/wallet \
             --header "Authorization: $session_token" \
@@ -186,6 +195,15 @@ expect_json_eq '{
 
 expect_db "select * from user_arena_statistics;" "$tmp_dir"/db-user-stats-3.txt
 expect_true grep --quiet \
-            ' *'"$user_id"' *| *200 *| *100 *| *50 *$' \
+            '^user_id *| *'"$user_id"'$' \
             "$tmp_dir"/db-user-stats-3.txt
-expect_true grep --quiet '(1 row)' "$tmp_dir"/db-user-stats-3.txt
+expect_true grep --quiet \
+            '^game_count *| *200$' \
+            "$tmp_dir"/db-user-stats-3.txt
+expect_true grep --quiet \
+            '^victories *| *100$' \
+            "$tmp_dir"/db-user-stats-3.txt
+expect_true grep --quiet \
+            '^defeats *| *50$' \
+            "$tmp_dir"/db-user-stats-3.txt
+expect_eval_eq 1 "grep --count '^user_id' '$tmp_dir'/db-user-stats-3.txt"
