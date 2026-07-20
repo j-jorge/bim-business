@@ -400,3 +400,43 @@ expect_db()
         pass "$1"
     fi
 }
+
+expect_db_row_exists()
+{
+    if docker exec "$_db_container_name" \
+              psql \
+              --dbname "$_db_name" \
+              --port "$_db_port" \
+              --username "$_db_user" \
+              --command "select exists ($1)" \
+            | grep --quiet '^ t$'
+    then
+        pass "select exists ($1)"
+    else
+        fail_count=$((fail_count + 1))
+        fail "select exists ($1)"
+    fi
+}
+
+expect_db_row_absent()
+{
+    if docker exec "$_db_container_name" \
+              psql \
+              --dbname "$_db_name" \
+              --port "$_db_port" \
+              --username "$_db_user" \
+              --command "select exists ($1)" \
+            | grep --quiet '^ f$'
+    then
+        pass "NOT select exists ($1)"
+    else
+        fail_count=$((fail_count + 1))
+        fail "NOT select exists ($1)"
+        docker exec "$_db_container_name" \
+              psql \
+              --dbname "$_db_name" \
+              --port "$_db_port" \
+              --username "$_db_user" \
+              --command "$1"
+    fi
+}
