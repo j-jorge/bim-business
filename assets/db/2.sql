@@ -1,15 +1,15 @@
 create table game_feature_slot
 (
   index smallint primary key,
-  cost_in_coins integer
+  cost_in_coins integer not null
 );
 
-alter table meta_version add date timestamp;
+alter table meta_version add date timestamp not null;
 
 create table app_config
 (
   key text primary key,
-  value text
+  value text not null
 );
 
 create table user_account
@@ -33,7 +33,7 @@ create table user_device
 create table user_wallet
 (
   user_id bigint primary key references user_account (user_id),
-  coins bigint
+  coins bigint not null
 );
 
 create type transaction_origin as enum ('admin', 'app');
@@ -41,11 +41,11 @@ create type transaction_origin as enum ('admin', 'app');
 create table currency_transaction
 (
   user_id bigint references user_account (user_id),
-  date timestamp,
-  origin transaction_origin,
-  reason text,
-  initial_balance bigint,
-  amount bigint
+  date timestamp not null,
+  origin transaction_origin not null,
+  reason text not null,
+  initial_balance bigint not null,
+  amount bigint not null
 );
 
 create unique index currency_transaction_unique_reasons
@@ -83,7 +83,7 @@ create table user_available_game_features
 create table user_selected_game_features
 (
   user_id bigint references user_account (user_id),
-  slot_index smallint,
+  slot_index smallint not null,
   feature_id smallint references game_feature (id),
 
   unique (user_id, slot_index),
@@ -102,9 +102,9 @@ create table user_selected_game_features
 create table user_arena_statistics
 (
   user_id bigint primary key references user_account (user_id),
-  game_count integer,
-  victories integer,
-  defeats integer
+  game_count integer not null,
+  victories integer not null,
+  defeats integer not null
 );
 
 create table sessions
@@ -112,7 +112,7 @@ create table sessions
   token text primary key,
   user_id bigint references user_account (user_id),
   device_id text references user_device (device_id),
-  created_at timestamp,
-  expires_at timestamp,
-  last_used_at timestamp
+  created_at timestamp not null,
+  expires_at timestamp not null,
+  last_used_at timestamp not null
 );

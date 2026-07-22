@@ -64,3 +64,11 @@ create table game_reward
   user_id bigint primary key references user_account (user_id),
   coins bigint not null
 );
+
+-- Not related to games. Add not null constraints forgotten in the
+-- initial tables.
+alter table game_feature alter column cost_in_coins set not null;
+alter table game_server alter column description set not null;
+alter table game_server alter column registration_date set not null;
+alter table game_server alter column last_seen set not null;
+alter table shop alter column coins set not null;
