@@ -152,7 +152,6 @@ impl Service {
     {
       let internals = self.m_internals.read().await;
       let clean_up_delay = std::time::Duration::from_mins(
-        // TODO: sessions.clean_up_interval.minutes.
         app_config::get_u64(db, "sessions.clean_up_interval.minutes", 60).await,
       );
 
