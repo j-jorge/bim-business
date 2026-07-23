@@ -128,6 +128,7 @@ async fn main() -> Result<()> {
       "/client",
       webapi::client::account::route(session_service.clone(), pool.clone()),
     )
+    .nest("/client/game", webapi::client::game::route(pool.clone()))
     .nest(
       "/gs/",
       webapi::gs::games::route(games.clone(), pool.clone()),

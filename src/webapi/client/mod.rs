@@ -3,3 +3,4 @@ mod auth;
 
 pub mod account;
 pub mod config;
+pub mod game;

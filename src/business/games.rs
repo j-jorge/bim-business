@@ -335,3 +335,26 @@ pub async fn over(
 
   return Ok(());
 }
+
+pub async fn consume_reward(
+  transaction: &db::Transaction<'_>,
+  game_id: i64,
+  user_id: i64,
+) -> result::Result<i64> {
+  let optional_row: Option<tokio_postgres::Row> = db::query_opt_p(
+    transaction,
+    r"delete from game_reward
+      where game_id = $1
+      and user_id = $2
+      returning coins",
+    &[&game_id, &user_id],
+  )
+  .await?;
+
+  if let Some(row) = optional_row {
+    let coins: i64 = row.get(0);
+    return Ok(coins);
+  }
+
+  return Err(error::Error::BadParameter);
+}
