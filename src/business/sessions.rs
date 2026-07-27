@@ -198,20 +198,25 @@ pub async fn refresh(
 
 pub async fn to_user_id(
   db: &db::Client,
-  session_token: &str,
-) -> result::Result<Option<i64>> {
+  session_tokens: &Vec<String>,
+) -> result::Result<Vec<Option<i64>>> {
   let now = std::time::SystemTime::now();
+  let mut result = Vec::<Option<i64>>::with_capacity(session_tokens.len());
 
-  let existing_user_id: Option<tokio_postgres::Row> = db::query_opt_p(
-    db,
-    r"select user_id from sessions where token = $1 and expires_at > $2",
-    &[&session_token, &now],
-  )
-  .await?;
+  for t in session_tokens {
+    let existing_user_id: Option<tokio_postgres::Row> = db::query_opt_p(
+      db,
+      r"select user_id from sessions where token = $1 and expires_at > $2",
+      &[&t, &now],
+    )
+    .await?;
 
-  if let Some(user_id) = existing_user_id {
-    return Ok(user_id.get(0));
+    if let Some(user_id) = existing_user_id {
+      result.push(Some(user_id.get(0)));
+    } else {
+      result.push(None);
+    }
   }
 
-  return Ok(None);
+  return Ok(result);
 }

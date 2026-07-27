@@ -51,19 +51,34 @@ session_token_2="$(jq -r .session_token "$tmp_dir"/authenticate-2.json)"
 expect_post gs/user-id \
             --header "Authorization: $gs_token" \
             --header "Content-Type: application/json" \
-            --data '{"session_token": "'"$session_token_1"'"}' \
-            -o "$tmp_dir"/gs-user-id-1.json
-gs_user_id_1="$(jq -r .user_id "$tmp_dir"/gs-user-id-1.json)"
-expect_eq "$user_id_1" "$gs_user_id_1"
+            --data '{
+                      "sessions":
+                      [
+                        "'"$session_token_2"'",
+                        "'"$session_token_1"'",
+                        "this-is-not-a-session"
+                      ],
+                      "tokens":
+                      [
+                        11,
+                        22,
+                        33
+                      ]
+                    }' \
+                        -o "$tmp_dir"/gs-user-id-1.json
+expect_json_eq '{
+                  "user_ids":
+                  [
+                    null,
+                    '"$user_id_1"',
+                    null
+                  ],
+                  "tokens":
+                  [
+                    11,
+                    22,
+                    33
+                  ]
+                }' \
+                    "$tmp_dir"/gs-user-id-1.json
 
-# The game server checks the session of the second client. It should be invalid.
-expect_post_error 404 gs/user-id \
-                  --header "Authorization: $gs_token" \
-                  --header "Content-Type: application/json" \
-                  --data '{"session_token": "'"$session_token_2"'"}'
-
-# The game server checks an unknown session. It should be invalid.
-expect_post_error 404 gs/user-id \
-                  --header "Authorization: $gs_token" \
-                  --header "Content-Type: application/json" \
-                  --data '{"session_token": "this-is-not-a-session"}'

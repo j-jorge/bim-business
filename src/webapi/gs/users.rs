@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::business;
 use crate::webapi::gs::auth;
-use axum::response::IntoResponse;
 
 type StateHandle = deadpool_postgres::Pool;
 
@@ -16,36 +15,28 @@ async fn auth(
 
 #[derive(serde::Deserialize)]
 struct UserIdRequest {
-  session_token: String,
+  sessions: Vec<String>,
+  tokens: Vec<i64>,
 }
 
 #[derive(serde::Serialize)]
 struct UserIdResponse {
-  user_id: i64,
+  tokens: Vec<i64>,
+  user_ids: Vec<Option<i64>>,
 }
 
 async fn user_id(
   state: axum::extract::State<StateHandle>,
   axum::Json(request): axum::Json<UserIdRequest>,
-) -> axum::response::Response<axum::body::Body> {
-  if let Ok(db) = state.0.get().await
-    && let Ok(option) =
-      business::sessions::to_user_id(&db, &request.session_token).await
-  {
-    if let Some(user_id) = option {
-      if let Ok(json) = serde_json::to_value(UserIdResponse { user_id })
-        && let Ok(string) = serde_json::to_string(&json)
-      {
-        return string.into_response();
-      }
+) -> business::result::Result<axum::Json<UserIdResponse>> {
+  let user_ids: Vec<Option<i64>> =
+    business::sessions::to_user_id(&state.0.get().await?, &request.sessions)
+      .await?;
 
-      return axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    }
-
-    return axum::http::StatusCode::NOT_FOUND.into_response();
-  }
-
-  return axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response();
+  return Ok(axum::Json(UserIdResponse {
+    tokens: request.tokens,
+    user_ids,
+  }));
 }
 
 /// Configure all routes for this service.
