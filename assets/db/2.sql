@@ -4,7 +4,10 @@ create table game_feature_slot
   cost_in_coins integer not null
 );
 
-alter table meta_version add date timestamp not null;
+alter table meta_version add column date timestamp;
+update meta_version set date = '2026-01-01';
+
+alter table meta_version alter column date set not null;
 
 create table app_config
 (
