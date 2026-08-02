@@ -16,12 +16,12 @@ async fn auth(
 #[derive(serde::Deserialize)]
 struct UserIdRequest {
   sessions: Vec<String>,
-  tokens: Vec<i64>,
+  tokens: Vec<u64>,
 }
 
 #[derive(serde::Serialize)]
 struct UserIdResponse {
-  tokens: Vec<i64>,
+  tokens: Vec<u64>,
   user_ids: Vec<Option<i64>>,
 }
 
