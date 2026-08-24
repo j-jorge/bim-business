@@ -60,7 +60,7 @@ do
 done
 
 #-------------------------------------------------------------------------------
-# Check the rewards.
+# Check the rewards when everybody loses.
 
 expect_post gs/game-started \
             --header "Authorization: $gs_token" \
@@ -68,13 +68,14 @@ expect_post gs/game-started \
             --data '{
                       "players":
                       [
+                        '"${user_id[2]}"',
+                        '"${user_id[1]}"',
                         '"${user_id[0]}"',
-                        '"${user_id[3]}"',
-                        '"${user_id[2]}"'
+                        '"${user_id[3]}"'
                       ]
                     }' \
-                        -o "$tmp_dir"/game-1.json
-game_id_1="$(jq -r .game_id "$tmp_dir"/game-1.json)"
+                        -o "$tmp_dir"/game-2.json
+game_id_1="$(jq -r .game_id "$tmp_dir"/game-2.json)"
 
 expect_post gs/game-over \
             --header "Authorization: $gs_token" \
@@ -84,43 +85,33 @@ expect_post gs/game-over \
                       "duration_in_seconds": 5,
                       "players":
                       [
+                        '"${user_id[0]}"',
+                        '"${user_id[1]}"',
                         '"${user_id[2]}"',
-                        '"${user_id[3]}"',
-                        '"${user_id[0]}"'
+                        '"${user_id[3]}"'
                       ],
-                      "outcome": ["defeated", "victory", "defeated"]
+                      "outcome":
+                      [
+                        "defeated",
+                        "defeated",
+                        "defeated",
+                        "defeated"
+                      ]
                     }'
 expect_db_row_exists 'select * from done_game
                       where game_id = '"$game_id_1"'
                       and short_game = true'
 
-expect_db_row_unique 'from done_game_player
-                      where game_id = '"$game_id_1"'
-                      and user_id = '"${user_id[2]}"'
-                      and outcome = '"'Defeated'"
-expect_db_row_unique 'from done_game_player
-                      where game_id = '"$game_id_1"'
-                      and user_id = '"${user_id[3]}"'
-                      and outcome = '"'Victory'"
-expect_db_row_unique 'from done_game_player
-                      where game_id = '"$game_id_1"'
-                      and user_id = '"${user_id[0]}"'
-                      and outcome = '"'Defeated'"
+for i in {0..3}
+do
+    expect_db_row_unique 'from done_game_player
+                          where game_id = '"$game_id_1"'
+                          and user_id = '"${user_id[i]}"'
+                          and outcome = '"'Defeated'"
 
-expect_db 'select * from game_reward
+    expect_db 'select * from game_reward
            where game_id = '"$game_id_1"'
-           and user_id = '"${user_id[2]}" \
-               "$tmp_dir"/reward-user-2.txt
-expect_true grep --quiet '^coins *| *3$' "$tmp_dir"/reward-user-2.txt
-
-expect_db 'select * from game_reward
-           where game_id = '"$game_id_1"'
-           and user_id = '"${user_id[3]}" \
-               "$tmp_dir"/reward-user-3.txt
-expect_true grep --quiet '^coins *| *2$' "$tmp_dir"/reward-user-3.txt
-
-expect_db 'select * from game_reward
-           where game_id = '"$game_id_1"'
-           and user_id = '"${user_id[0]}" \
-               "$tmp_dir"/reward-user-0.txt
-expect_true grep --quiet '^coins *| *3$' "$tmp_dir"/reward-user-0.txt
+           and user_id = '"${user_id[i]}" \
+              "$tmp_dir"/reward-g2-user-"$i".txt
+    expect_true grep --quiet '^coins *| *3$' "$tmp_dir"/reward-g2-user-"$i".txt
+done

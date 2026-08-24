@@ -102,14 +102,14 @@ expect_post gs/game-over \
             --header "Content-Type: application/json" \
             --data '{
                       "game_id": '"$game_id_1"',
-                      "has_a_winner": true,
+                      "duration_in_seconds": 5,
                       "players":
                       [
                         '"${user_id[2]}"',
                         '"${user_id[3]}"',
                         '"${user_id[0]}"'
                       ],
-                      "player_ranks": [2, 0, 4]
+                      "outcome": ["defeated", "victory", "defeated"]
                     }'
 expect_db_row_exists 'select * from done_game
                       where game_id = '"$game_id_1"'
@@ -124,15 +124,19 @@ expect_db_row_absent 'select * from active_game_player
 expect_db_row_absent 'select * from active_game_player
                       where game_id = '"$game_id_1"'
                       and user_id = '"${user_id[3]}"
-expect_db_row_exists 'select * from done_game_player
+
+expect_db_row_unique 'from done_game_player
                       where game_id = '"$game_id_1"'
-                      and user_id = '"${user_id[0]}"
-expect_db_row_exists 'select * from done_game_player
+                      and user_id = '"${user_id[0]}"'
+                      and outcome = '"'Defeated'"
+expect_db_row_unique 'from done_game_player
                       where game_id = '"$game_id_1"'
-                      and user_id = '"${user_id[2]}"
-expect_db_row_exists 'select * from done_game_player
+                      and user_id = '"${user_id[2]}"'
+                      and outcome = '"'Defeated'"
+expect_db_row_unique 'from done_game_player
                       where game_id = '"$game_id_1"'
-                      and user_id = '"${user_id[3]}"
+                      and user_id = '"${user_id[3]}"'
+                      and outcome = '"'Victory'"
 
 expect_db 'select * from game_reward
            where game_id = '"$game_id_1"'
@@ -168,29 +172,34 @@ expect_post gs/game-started \
                     }' \
                         -o "$tmp_dir"/game-2.json
 game_id_2="$(jq -r .game_id "$tmp_dir"/game-2.json)"
-readarray -t players_2 < <(jq -r '.players[]' "$tmp_dir"/game-2.json)
-
-expect_ne 0 "${players_2[0]}"
-expect_eq "${user_id[1]}" "${players_2[1]}"
-expect_ne 0 "${players_2[2]}"
 
 expect_post gs/game-over \
             --header "Authorization: $gs_token" \
             --header "Content-Type: application/json" \
             --data '{
                       "game_id": '"$game_id_2"',
-                      "has_a_winner": true,
+                      "duration_in_seconds": 5,
                       "players":
                       [
                         '"${user_id[1]}"',
-                        '"${players_2[0]}"',
-                        '"${players_2[2]}"'
+                        0,
+                        0
                       ],
-                      "player_ranks": [0, 2, 1]
+                      "outcome": ["victory", "defeated", "defeated"]
                     }'
 expect_db_row_exists 'select * from done_game
                       where game_id = '"$game_id_2"'
                       and short_game = false'
+
+expect_db_row_unique 'from done_game_player
+                      where game_id = '"$game_id_2"'
+                      and user_id = '"${user_id[1]}"'
+                      and outcome = '"'Victory'"
+
+expect_db_row_count 2 'from done_game_player
+                       where game_id = '"$game_id_2"'
+                       and user_id = 0
+                       and outcome = '"'Defeated'"
 
 expect_db 'select * from game_reward
            where game_id = '"$game_id_2"'

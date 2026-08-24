@@ -81,18 +81,31 @@ expect_post gs/game-over \
             --header "Content-Type: application/json" \
             --data '{
                       "game_id": '"$game_id_1"',
-                      "has_a_winner": true,
+                      "duration_in_seconds": 5,
                       "players":
                       [
                         '"${user_id[2]}"',
                         '"${user_id[3]}"',
                         '"${user_id[0]}"'
                       ],
-                      "player_ranks": [2, 0, 0]
+                      "outcome": ["defeated", "draw", "draw"]
                     }'
 expect_db_row_exists 'select * from done_game
                       where game_id = '"$game_id_1"'
                       and short_game = true'
+
+expect_db_row_unique 'from done_game_player
+                      where game_id = '"$game_id_1"'
+                      and user_id = '"${user_id[2]}"'
+                      and outcome = '"'Defeated'"
+expect_db_row_unique 'from done_game_player
+                      where game_id = '"$game_id_1"'
+                      and user_id = '"${user_id[3]}"'
+                      and outcome = '"'Draw'"
+expect_db_row_unique 'from done_game_player
+                      where game_id = '"$game_id_1"'
+                      and user_id = '"${user_id[0]}"'
+                      and outcome = '"'Draw'"
 
 expect_db 'select * from game_reward
            where game_id = '"$game_id_1"'
@@ -111,49 +124,3 @@ expect_db 'select * from game_reward
            and user_id = '"${user_id[0]}" \
                "$tmp_dir"/reward-g1-user-0.txt
 expect_true grep --quiet '^coins *| *7$' "$tmp_dir"/reward-g1-user-0.txt
-
-#-------------------------------------------------------------------------------
-# Check the rewards when Everybody loses.
-
-expect_post gs/game-started \
-            --header "Authorization: $gs_token" \
-            --header "Content-Type: application/json" \
-            --data '{
-                      "players":
-                      [
-                        '"${user_id[2]}"',
-                        '"${user_id[1]}"',
-                        '"${user_id[0]}"',
-                        '"${user_id[3]}"'
-                      ]
-                    }' \
-                        -o "$tmp_dir"/game-2.json
-game_id_2="$(jq -r .game_id "$tmp_dir"/game-2.json)"
-
-expect_post gs/game-over \
-            --header "Authorization: $gs_token" \
-            --header "Content-Type: application/json" \
-            --data '{
-                      "game_id": '"$game_id_2"',
-                      "has_a_winner": false,
-                      "players":
-                      [
-                        '"${user_id[0]}"',
-                        '"${user_id[1]}"',
-                        '"${user_id[2]}"',
-                        '"${user_id[3]}"'
-                      ],
-                      "player_ranks": [0, 0, 0, 0]
-                    }'
-expect_db_row_exists 'select * from done_game
-                      where game_id = '"$game_id_2"'
-                      and short_game = true'
-
-for i in {0..3}
-do
-    expect_db 'select * from game_reward
-           where game_id = '"$game_id_2"'
-           and user_id = '"${user_id[i]}" \
-              "$tmp_dir"/reward-g2-user-"$i".txt
-    expect_true grep --quiet '^coins *| *7$' "$tmp_dir"/reward-g2-user-"$i".txt
-done

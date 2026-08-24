@@ -1,7 +1,8 @@
-create table bot
-(
-  user_id bigint primary key references user_account (user_id)
-);
+-- Let's have a fake user for the bots as it simplifies foreign keys
+-- in game tables.
+insert into user_account
+overriding system value
+values (0, 'bot-placeholder');
 
 -- Remove the text-based primary key id from game_server. Use a
 -- numeric id instead, and keep the text info for documentation.
@@ -19,7 +20,7 @@ add column id bigint primary key generated always as identity;
 create table game
 (
   game_id bigint primary key generated always as identity,
-  game_server_id bigint references game_server (id)
+  game_server_id bigint not null references game_server (id)
 );
 
 -- Games currently being played.
@@ -43,26 +44,37 @@ create table done_game
 -- that I won't have to check in the code.
 create table active_game_player
 (
-  game_id bigint references active_game (game_id),
-  user_id bigint primary key references user_account (user_id),
-  unique (game_id, user_id)
+  game_id bigint not null references active_game (game_id),
+  user_id bigint not null references user_account (user_id)
 );
+
+-- Players can be in at most one active game, bots can be in many.
+create unique index user_is_in_single_game
+on active_game_player (user_id)
+where user_id <> 0;
 
 -- Which players were in each completed game.
 create table done_game_player
 (
-  game_id bigint references done_game (game_id),
-  user_id bigint references user_account (user_id),
-  unique (game_id, user_id)
+  game_id bigint not null references done_game (game_id),
+  user_id bigint not null references user_account (user_id),
+  outcome text not null
 );
+
+-- Except for bots, players have played a game only once.
+create unique index game_user_uniqueness
+on done_game_player (game_id, user_id)
+where user_id <> 0;
 
 -- Reward of each player in the given game. This is kept for the
 -- client to retrieve its reward after a game for display.
 create table game_reward
 (
-  game_id bigint references game (game_id),
+  game_id bigint not null references game (game_id),
   user_id bigint primary key references user_account (user_id),
-  coins bigint not null
+  coins bigint not null,
+  -- No reward for the bots.
+  check (user_id > 0)
 );
 
 -- Not related to games. Add not null constraints forgotten in the

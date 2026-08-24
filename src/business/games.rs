@@ -83,16 +83,12 @@ impl Service {
 #[derive(serde::Serialize)]
 pub struct StartedResult {
   game_id: i64,
-
-  // Same as the input players except that bots placeholders are
-  // replaced by bot IDs.
-  players: Vec<i64>,
 }
 
 pub async fn started(
   transaction: &db::Transaction<'_>,
   game_server: i64,
-  request_players: &[i64],
+  players: &[i64],
 ) -> result::Result<StartedResult> {
   let game_id: i64 = db::query_one_p(
     transaction,
@@ -108,33 +104,6 @@ pub async fn started(
     &[&game_id, &std::time::SystemTime::now()],
   )
   .await?;
-
-  // Replace the bot placeholders by actual bot users.
-  let mut players: Vec<i64> = request_players.to_vec();
-
-  const BOT_PLACEHOLDER: i64 = 0;
-
-  let bot_count: usize = request_players
-    .iter()
-    .filter(|&v| *v == BOT_PLACEHOLDER)
-    .count();
-
-  if bot_count > 0 {
-    // There may be some competition here. If two game servers request
-    // bots simultaneously they may select the same bots, then the
-    // transaction will fail because the same bot would end up in
-    // multiple games.
-    let bots: Vec<i64> =
-      bots::get_or_create_bots(transaction, bot_count).await?;
-    let mut b: usize = 0;
-
-    for p in &mut players {
-      if *p == BOT_PLACEHOLDER {
-        *p = bots[b];
-        b += 1;
-      }
-    }
-  }
 
   let mut query = String::from(r"insert into active_game_player values");
   let mut parameters =
@@ -152,23 +121,46 @@ pub async fn started(
 
   db::execute_p(transaction, &query, &parameters).await?;
 
-  return Ok(StartedResult { game_id, players });
+  return Ok(StartedResult { game_id });
+}
+
+#[derive(serde::Deserialize, PartialEq, Debug, strum::Display)]
+#[serde(rename_all = "snake_case")]
+pub enum PlayerGameOutcome {
+  Defeated,
+  Kicked,
+  Draw,
+  Victory,
 }
 
 pub async fn over(
   transaction: &db::Transaction<'_>,
   game_server: i64,
   game_id: i64,
-  has_a_winner: bool,
+  game_duration: std::time::Duration,
   players: &[i64],
-  player_ranks: &[i8],
+  outcome: &[PlayerGameOutcome],
 ) -> result::Result<()> {
-  if players.len() != player_ranks.len() {
+  if players.len() != outcome.len() {
     tracing::warn!(
-      "Game {} has inconsistent ranking: {} players and {} ranks.",
+      "Game {} has inconsistent outcome: {} players and {} outcome.",
       game_id,
       players.len(),
-      player_ranks.len()
+      outcome.len()
+    );
+    return Err(error::Error::Unprocessable);
+  }
+
+  if outcome
+    .iter()
+    .filter(|&o| *o == PlayerGameOutcome::Victory)
+    .count()
+    > 1
+  {
+    tracing::warn!(
+      "There can't be more than one victory in game {}. Outcome is {:?}.",
+      game_id,
+      outcome
     );
     return Err(error::Error::Unprocessable);
   }
@@ -191,7 +183,7 @@ pub async fn over(
 
   // Remove the players from the active game, since the game is not
   // active anymore.
-  let initial_players: Vec<i64> = db::collect_p(
+  let mut initial_players: Vec<i64> = db::collect_p(
     transaction,
     r"delete from active_game_player
       where game_id = $1
@@ -200,13 +192,20 @@ pub async fn over(
     |r| r.get(0),
   )
   .await?;
+  initial_players.sort();
+
+  let mut sorted_players: Vec<i64> = players.to_vec();
+  sorted_players.sort();
 
   // Sanity check again: the player should be in the game.
-  for p in players {
-    if !initial_players.contains(p) {
-      tracing::warn!("Player {} was not in game {}.", p, game_id);
-      return Err(error::Error::Unprocessable);
-    }
+  if sorted_players != initial_players {
+    tracing::warn!(
+      "Players of game {} are different {:?} vs {:?}.",
+      game_id,
+      initial_players,
+      sorted_players
+    );
+    return Err(error::Error::Unprocessable);
   }
 
   // The game is over, we can remove it from from the active games.
@@ -220,23 +219,13 @@ pub async fn over(
 
   let now = std::time::SystemTime::now();
 
-  let short_game: bool = if let Ok(d) = now.duration_since(start_date) {
-    d.as_secs()
-      < app_config::get_u64(
-        transaction,
-        "games.max_duration_for_short_game.seconds",
-        30,
-      )
-      .await
-  } else {
-    tracing::warn!(
-      "Game {} ends at {}, after its beginning at {}.",
-      game_id,
-      chrono::DateTime::<chrono::Utc>::from(now),
-      chrono::DateTime::<chrono::Utc>::from(start_date)
-    );
-    true
-  };
+  let short_game: bool = game_duration.as_secs()
+    < app_config::get_u64(
+      transaction,
+      "games.max_duration_for_short_game.seconds",
+      30,
+    )
+    .await;
 
   // We can register that the game is done, since it is done…
   db::execute_p(
@@ -248,18 +237,22 @@ pub async fn over(
 
   // And also keep track of the players who have played this game.
   {
+    let outcome_str: Vec<String> =
+      outcome.iter().map(|o| o.to_string()).collect();
     let mut query = String::from(r"insert into done_game_player values");
     let mut parameters =
       Vec::<&(dyn tokio_postgres::types::ToSql + Sync)>::with_capacity(
-        initial_players.len() + 1,
+        2 * players.len() + 1,
       );
     parameters.push(&game_id);
 
     let mut separator: char = ' ';
 
-    for (i, p) in initial_players.iter().enumerate() {
-      query += &format!(r"{}($1, ${})", separator, i + 2);
+    for (i, p) in players.iter().enumerate() {
+      query +=
+        &format!(r"{}($1, ${}, ${})", separator, 2 * (i + 1), 2 * (i + 1) + 1);
       parameters.push(p);
+      parameters.push(&outcome_str[i]);
       separator = ',';
     }
 
@@ -267,9 +260,7 @@ pub async fn over(
   }
 
   // Now distribute the rewards.
-  let victory_reward: i64 = if !has_a_winner {
-    0
-  } else if short_game {
+  let victory_reward: i64 = if short_game {
     app_config::get(transaction, "games.coins_per_short_game_victory", 0).await
   } else {
     app_config::get(transaction, "games.coins_per_victory", 10).await
@@ -285,38 +276,27 @@ pub async fn over(
     app_config::get(transaction, "games.coins_per_draw", 10).await
   };
 
-  let mut index: Vec<usize> = (0..players.len()).collect();
-  index.sort_by(|lhs, rhs| player_ranks[*lhs].cmp(&player_ranks[*rhs]));
+  const BOT_PLACEHOLDER: i64 = 0;
 
-  let is_draw_game: bool = (player_ranks.len() > 1)
-    && (player_ranks[index[0]] == player_ranks[index[1]]);
-
-  for i in &index {
-    if db::exists_p(
-      transaction,
-      "select * from bot where user_id = $1",
-      &[&players[*i]],
-    )
-    .await?
-    {
+  for (i, p) in players.iter().enumerate() {
+    if *p == BOT_PLACEHOLDER {
       continue;
     }
 
-    let (coins, reason) = if player_ranks[*i] == player_ranks[index[0]] {
-      if is_draw_game {
-        (draw_reward, "game-draw")
-      } else {
-        (victory_reward, "game-victory")
+    let (coins, reason) = match outcome[i] {
+      PlayerGameOutcome::Defeated => (defeat_reward, "game-defeat"),
+      PlayerGameOutcome::Kicked => {
+        continue;
       }
-    } else {
-      (defeat_reward, "game-defeat")
+      PlayerGameOutcome::Draw => (draw_reward, "game-draw"),
+      PlayerGameOutcome::Victory => (victory_reward, "game-victory"),
     };
 
     if coins == 0 {
       db::execute_p(
         transaction,
         r"delete from game_reward where user_id = $1",
-        &[&players[*i]],
+        &[p],
       )
       .await?;
     } else {
@@ -325,12 +305,12 @@ pub async fn over(
         r"insert into game_reward
           values ($1, $2, $3)
           on conflict (user_id) do update set (game_id, coins) = ($1, $3)",
-        &[&game_id, &players[*i], &coins],
+        &[&game_id, p, &coins],
       )
       .await?;
     }
 
-    wallet::coins_transaction(transaction, players[*i], reason, coins).await?;
+    wallet::coins_transaction(transaction, *p, reason, coins).await?;
   }
 
   return Ok(());

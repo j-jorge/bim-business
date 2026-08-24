@@ -78,21 +78,21 @@ expect_post gs/game-started \
                     }' \
                         -o "$tmp_dir"/game-1.json
 game_id_1="$(jq -r .game_id "$tmp_dir"/game-1.json)"
-readarray -t players_1 < <(jq -r '.players[]' "$tmp_dir"/game-1.json)
 
 expect_post gs/game-over \
             --header "Authorization: $gs_token" \
             --header "Content-Type: application/json" \
             --data '{
                       "game_id": '"$game_id_1"',
-                      "has_a_winner": true,
+                      "duration_in_seconds": 5,
                       "players":
                       [
                         '"${user_id[0]}"',
-                        '"${players_1[0]}"',
+                        '"${user_id[1]}"',
+                        0,
                         '"${user_id[2]}"'
                       ],
-                      "player_ranks": [0, 1, 2]
+                      "outcome": ["victory", "kicked", "defeated", "defeated"]
                     }'
 
 expect_post client/game/consume-reward \

@@ -74,37 +74,44 @@ expect_post gs/game-started \
                       ]
                     }' \
                         -o "$tmp_dir"/game-2.json
-game_id_2="$(jq -r .game_id "$tmp_dir"/game-2.json)"
-readarray -t players_2 < <(jq -r '.players[]' "$tmp_dir"/game-2.json)
-
-expect_eq "${user_id[1]}" "${players_2[1]}"
+game_id_1="$(jq -r .game_id "$tmp_dir"/game-2.json)"
 
 expect_post gs/game-over \
             --header "Authorization: $gs_token" \
             --header "Content-Type: application/json" \
             --data '{
-                      "game_id": '"$game_id_2"',
-                      "has_a_winner": true,
+                      "game_id": '"$game_id_1"',
+                      "duration_in_seconds": 5,
                       "players":
                       [
                         '"${user_id[1]}"',
-                        '"${players_2[0]}"',
-                        '"${players_2[2]}"'
+                        0,
+                        0
                       ],
-                      "player_ranks": [3, 1, 1]
+                      "outcome": ["defeated", "draw", "draw"]
                     }'
 expect_db_row_exists 'select * from done_game
-                      where game_id = '"$game_id_2"'
+                      where game_id = '"$game_id_1"'
                       and short_game = false'
 
+expect_db_row_unique 'from done_game_player
+                      where game_id = '"$game_id_1"'
+                      and user_id = '"${user_id[1]}"'
+                      and outcome = '"'Defeated'"
+
+expect_db_row_count 2 'from done_game_player
+                       where game_id = '"$game_id_1"'
+                       and user_id = 0
+                       and outcome = '"'Draw'"
+
 expect_db 'select * from game_reward
-           where game_id = '"$game_id_2"'
+           where game_id = '"$game_id_1"'
            and user_id = '"${user_id[1]}" \
                "$tmp_dir"/reward-user-1.txt
 expect_true grep --quiet '^coins *| *3$' "$tmp_dir"/reward-user-1.txt
 
 expect_db 'select * from game_reward
-           where game_id = '"$game_id_2"'
+           where game_id = '"$game_id_1"'
            and user_id != '"${user_id[1]}" \
                "$tmp_dir"/reward-bot.txt
 expect_true grep --quiet '(0 rows)' "$tmp_dir"/reward-bot.txt

@@ -45,9 +45,9 @@ async fn game_started(
 #[derive(serde::Deserialize)]
 struct GameOverNotification {
   game_id: i64,
-  has_a_winner: bool,
+  duration_in_seconds: u64,
   players: Vec<i64>,
-  player_ranks: Vec<i8>,
+  outcome: Vec<business::games::PlayerGameOutcome>,
 }
 
 #[axum::debug_handler]
@@ -63,9 +63,9 @@ async fn game_over(
     &transaction,
     server_id.0,
     request.game_id,
-    request.has_a_winner,
+    std::time::Duration::from_secs(request.duration_in_seconds),
     &request.players,
-    &request.player_ranks,
+    &request.outcome,
   )
   .await?;
 
