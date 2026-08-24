@@ -402,6 +402,33 @@ expect_db()
     fi
 }
 
+expect_db_row_count()
+{
+    local row_count
+    row_count="$(docker exec "$_db_container_name" \
+                        psql \
+                        --dbname "$_db_name" \
+                        --port "$_db_port" \
+                        --username "$_db_user" \
+                        --command "select count(*) $2" \
+                        --expanded \
+                        | grep 'count' \
+                        | tr -d -c '0-9')"
+
+    if [[ "$row_count" = "$1" ]]
+    then
+        pass "$1 row(s): $2"
+    else
+        fail_count=$((fail_count + 1))
+        fail "$row_count row(s) (!= $1): $2"
+    fi
+}
+
+expect_db_row_unique()
+{
+    expect_db_row_count 1 "$1"
+}
+
 expect_db_row_exists()
 {
     if docker exec "$_db_container_name" \
