@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+echo "$@"
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
 
 # shellcheck source-path=SCRIPTDIR
@@ -9,13 +11,41 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
 
 fail_count=0
 failing=()
+test_args=()
+filter=""
+
+while [[ $# -ne 0 ]]
+do
+    arg="$1"
+    shift
+
+    case "$arg" in
+        --filter)
+            filter="$1"
+            shift
+            ;;
+        *)
+            test_args+=("$arg")
+            ;;
+    esac
+done
+
+function filter_match()
+{
+    # We want to glob-match the filter, thus it must not be quoted.
+    # shellcheck disable=SC2053
+    [[ "$1" = $filter ]]
+}
 
 while read -r test_script
 do
-    if ! "$test_script" "$@"
+    if [[ -z "$filter" ]] || filter_match "$test_script"
     then
-        fail_count=$((fail_count + 1))
-        failing+=("$test_script")
+        if ! "$test_script" "${test_args[@]}"
+        then
+            fail_count=$((fail_count + 1))
+            failing+=("$test_script")
+        fi
     fi
 done < <(find "$script_dir" -mindepth 2 -executable -name "*.sh")
 
