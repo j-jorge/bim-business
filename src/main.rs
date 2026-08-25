@@ -8,7 +8,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[derive(argh::FromArgs)]
 /// Bim! business server.
 #[argh(help_triggers("-h", "--help"))]
-struct Arguments {
+struct Arguments
+{
   /// port to listen to.
   #[argh(option)]
   port: u16,
@@ -35,21 +36,23 @@ struct Arguments {
 
   /// the directory with the assets.
   #[argh(option)]
-  assets: std::path::PathBuf,
+  assets: std::path::PathBuf
 }
 
 #[derive(serde::Deserialize)]
-struct Secrets {
+struct Secrets
+{
   /// Password of the database user.
-  db_password: String,
+  db_password: String
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<()>
+{
   let arguments: Arguments = argh::from_env();
 
   let secrets: Secrets = serde_json::from_reader(std::io::BufReader::new(
-    std::fs::File::open(arguments.secrets.clone())?,
+    std::fs::File::open(arguments.secrets.clone())?
   ))?;
 
   // Tracing at app level. Use debug level for tower_http in order
@@ -59,8 +62,8 @@ async fn main() -> Result<()> {
       tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(
         |_| {
           format!("{}=debug,tower_http=debug", env!("CARGO_CRATE_NAME")).into()
-        },
-      ),
+        }
+      )
     )
     .with(tracing_subscriber::fmt::layer().with_ansi(false))
     .init();
@@ -82,7 +85,7 @@ async fn main() -> Result<()> {
   let pool = deadpool_config
     .create_pool(
       Some(deadpool_postgres::Runtime::Tokio1),
-      tokio_postgres::NoTls,
+      tokio_postgres::NoTls
     )
     .context("failed to create Postgres connection pool")?;
 
@@ -99,43 +102,43 @@ async fn main() -> Result<()> {
   let router = axum::Router::new()
     .nest(
       "/admin/flat-client-config",
-      webapi::admin::flat_client_config::route(pool.clone()),
+      webapi::admin::flat_client_config::route(pool.clone())
     )
     .nest(
       "/admin/app-config",
-      webapi::admin::app_config::route(pool.clone()),
+      webapi::admin::app_config::route(pool.clone())
     )
     .nest("/admin/users", webapi::admin::users::route(pool.clone()))
     .nest(
       "/admin/game-feature-slots",
-      webapi::admin::game_feature_slots::route(pool.clone()),
+      webapi::admin::game_feature_slots::route(pool.clone())
     )
     .nest(
       "/admin/game-features",
-      webapi::admin::game_features::route(pool.clone()),
+      webapi::admin::game_features::route(pool.clone())
     )
     .nest(
       "/admin/game-servers",
-      webapi::admin::game_servers::route(game_servers.clone(), pool.clone()),
+      webapi::admin::game_servers::route(game_servers.clone(), pool.clone())
     )
     .nest("/admin/leads", webapi::admin::leads::route(pool.clone()))
     .nest("/admin/shop", webapi::admin::shop::route(pool.clone()))
     .nest(
       "/client/config",
-      webapi::client::config::route(game_servers.clone(), pool.clone()),
+      webapi::client::config::route(game_servers.clone(), pool.clone())
     )
     .nest(
       "/client",
-      webapi::client::account::route(session_service.clone(), pool.clone()),
+      webapi::client::account::route(session_service.clone(), pool.clone())
     )
     .nest("/client/game", webapi::client::game::route(pool.clone()))
     .nest(
       "/gs/",
-      webapi::gs::games::route(games.clone(), pool.clone()),
+      webapi::gs::games::route(games.clone(), pool.clone())
     )
     .nest(
       "/gs/",
-      webapi::gs::hello::route(game_servers.clone(), pool.clone()),
+      webapi::gs::hello::route(game_servers.clone(), pool.clone())
     )
     .nest("/gs/", webapi::gs::users::route(pool.clone()))
     .layer(tower_http::trace::TraceLayer::new_for_http());
@@ -143,7 +146,7 @@ async fn main() -> Result<()> {
   // And finally, launch the server.
   let address = std::net::SocketAddr::new(
     std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)),
-    arguments.port,
+    arguments.port
   );
 
   let server = axum_server::bind(address).serve(router.into_make_service());

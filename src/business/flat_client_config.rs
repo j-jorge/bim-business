@@ -4,32 +4,40 @@ use super::*;
 // Key-value storage for the client's config parameters that would not
 // need special handling.
 
-pub enum Value {
+pub enum Value
+{
   Int64(i64),
-  Text(String),
+  Text(String)
 }
 
-pub struct Entry {
+pub struct Entry
+{
   pub key: String,
-  pub value: Value,
+  pub value: Value
 }
 
 // Code for the type of the value as stored in the data base.
-enum DbValueType {
+enum DbValueType
+{
   Int64 = 0,
-  Text = 1,
+  Text = 1
 }
 
 pub async fn batch_put(
   t: &db::Transaction<'_>,
-  entries: &[Entry],
-) -> result::Result<()> {
-  for entry in entries {
-    match &entry.value {
-      Value::Int64(i) => {
+  entries: &[Entry]
+) -> result::Result<()>
+{
+  for entry in entries
+  {
+    match &entry.value
+    {
+      Value::Int64(i) =>
+      {
         internal_put(t, &entry.key, DbValueType::Int64, *i, "").await?;
       }
-      Value::Text(s) => {
+      Value::Text(s) =>
+      {
         internal_put(t, &entry.key, DbValueType::Text, 0, s).await?;
       }
     };
@@ -43,8 +51,9 @@ async fn internal_put(
   key: &str,
   t: DbValueType,
   int64_value: i64,
-  text_value: &str,
-) -> result::Result<()> {
+  text_value: &str
+) -> result::Result<()>
+{
   db::execute_p(
     transaction,
     "insert into flat_client_config \
@@ -55,7 +64,7 @@ async fn internal_put(
               int64_value = $3, \
               text_value = $4
            ",
-    &[&key, &(t as i16), &int64_value, &text_value],
+    &[&key, &(t as i16), &int64_value, &text_value]
   )
   .await?;
 
@@ -64,14 +73,16 @@ async fn internal_put(
 
 pub async fn batch_erase(
   t: &db::Transaction<'_>,
-  keys: &[String],
-) -> result::Result<()> {
-  for key in keys {
+  keys: &[String]
+) -> result::Result<()>
+{
+  for key in keys
+  {
     db::execute_p(
       t,
       "delete from flat_client_config \
                where key = $1",
-      &[&key],
+      &[&key]
     )
     .await?;
   }
@@ -79,25 +90,31 @@ pub async fn batch_erase(
   return Ok(());
 }
 
-pub async fn all_entries(db: &db::Client) -> result::Result<Vec<Entry>> {
-  fn row_to_entry(r: tokio_postgres::Row) -> result::Result<Entry> {
+pub async fn all_entries(db: &db::Client) -> result::Result<Vec<Entry>>
+{
+  fn row_to_entry(r: tokio_postgres::Row) -> result::Result<Entry>
+  {
     const INT64_TYPE: i16 = DbValueType::Int64 as i16;
     const TEXT_TYPE: i16 = DbValueType::Text as i16;
 
-    match r.get(1) {
-      INT64_TYPE => {
+    match r.get(1)
+    {
+      INT64_TYPE =>
+      {
         return Ok(Entry {
           key: r.get(0),
-          value: Value::Int64(r.get(2)),
+          value: Value::Int64(r.get(2))
         });
       }
-      TEXT_TYPE => {
+      TEXT_TYPE =>
+      {
         return Ok(Entry {
           key: r.get(0),
-          value: Value::Text(r.get(3)),
+          value: Value::Text(r.get(3))
         });
       }
-      _ => {
+      _ =>
+      {
         return Err(error::Error::BadParameter);
       }
     }
@@ -106,7 +123,7 @@ pub async fn all_entries(db: &db::Client) -> result::Result<Vec<Entry>> {
   return db::collect(
     db,
     "select key, type, int64_value, text_value from flat_client_config",
-    row_to_entry,
+    row_to_entry
   )
   .await?;
 }

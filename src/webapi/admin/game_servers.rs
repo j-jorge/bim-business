@@ -3,24 +3,27 @@ use crate::business;
 use crate::webapi::admin::auth;
 
 #[derive(Clone)]
-pub struct ServiceState {
+pub struct ServiceState
+{
   db: deadpool_postgres::Pool,
-  game_servers: std::sync::Arc<business::game_servers::GameServers>,
+  game_servers: std::sync::Arc<business::game_servers::GameServers>
 }
 
 /// Middleware to validate that the request comes from a leader.
 async fn auth(
   state: axum::extract::State<ServiceState>,
   request: axum::extract::Request,
-  next: axum::middleware::Next,
-) -> axum::response::Response<axum::body::Body> {
+  next: axum::middleware::Next
+) -> axum::response::Response<axum::body::Body>
+{
   return auth::validate_request(&state.0.db, request, next).await;
 }
 
 #[derive(serde::Deserialize)]
-struct RegisterRequest {
+struct RegisterRequest
+{
   name: String,
-  description: String,
+  description: String
 }
 
 /**
@@ -41,10 +44,11 @@ struct RegisterRequest {
  */
 async fn register(
   state: axum::extract::State<ServiceState>,
-  axum::Json(request): axum::Json<RegisterRequest>,
+  axum::Json(request): axum::Json<RegisterRequest>
 ) -> business::result::Result<
-  axum::Json<business::game_servers::RegistrationResult>,
-> {
+  axum::Json<business::game_servers::RegistrationResult>
+>
+{
   let game_servers: &business::game_servers::GameServers =
     &state.0.game_servers;
 
@@ -52,7 +56,7 @@ async fn register(
     .register(
       &state.0.db.get().await?,
       &request.name,
-      &request.description,
+      &request.description
     )
     .await?;
 
@@ -61,24 +65,29 @@ async fn register(
 
 /// List all game servers. This requires an administrator.
 async fn list(
-  state: axum::extract::State<ServiceState>,
+  state: axum::extract::State<ServiceState>
 ) -> business::result::Result<
-  axum::Json<Vec<business::game_servers::GameServerInfo>>,
-> {
+  axum::Json<Vec<business::game_servers::GameServerInfo>>
+>
+{
   let game_servers: &business::game_servers::GameServers =
     &state.0.game_servers;
 
   return Ok(axum::Json(
-    game_servers.all(&state.0.db.get().await?).await?,
+    game_servers.all(&state.0.db.get().await?).await?
   ));
 }
 
 /// Configure all routes for this service.
 pub fn route(
   game_servers: std::sync::Arc<business::game_servers::GameServers>,
-  db: deadpool_postgres::Pool,
-) -> axum::Router {
-  let state = ServiceState { db, game_servers };
+  db: deadpool_postgres::Pool
+) -> axum::Router
+{
+  let state = ServiceState {
+    db,
+    game_servers
+  };
 
   return axum::Router::new()
     .route("/register", axum::routing::post(register))

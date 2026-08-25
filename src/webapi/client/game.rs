@@ -8,27 +8,31 @@ type StateHandle = deadpool_postgres::Pool;
 async fn auth(
   state: axum::extract::State<StateHandle>,
   request: axum::extract::Request,
-  next: axum::middleware::Next,
-) -> axum::response::Response<axum::body::Body> {
+  next: axum::middleware::Next
+) -> axum::response::Response<axum::body::Body>
+{
   return auth::validate_request(&state.0, request, next).await;
 }
 
 #[derive(serde::Deserialize)]
-struct ConsumeRewardRequest {
-  game_id: i64,
+struct ConsumeRewardRequest
+{
+  game_id: i64
 }
 
 #[derive(serde::Serialize)]
-struct ConsumeRewardResponse {
-  coins: i64,
+struct ConsumeRewardResponse
+{
+  coins: i64
 }
 
 #[axum::debug_handler]
 async fn consume_reward(
   user_id: axum::Extension<i64>,
   state: axum::extract::State<StateHandle>,
-  axum::Json(request): axum::Json<ConsumeRewardRequest>,
-) -> business::result::Result<axum::Json<ConsumeRewardResponse>> {
+  axum::Json(request): axum::Json<ConsumeRewardRequest>
+) -> business::result::Result<axum::Json<ConsumeRewardResponse>>
+{
   let mut client: business::db::Client = state.0.get().await?;
   let transaction: business::db::Transaction<'_> = client.transaction().await?;
 
@@ -38,10 +42,13 @@ async fn consume_reward(
 
   transaction.commit().await?;
 
-  return Ok(axum::Json(ConsumeRewardResponse { coins }));
+  return Ok(axum::Json(ConsumeRewardResponse {
+    coins
+  }));
 }
 
-pub fn route(db: deadpool_postgres::Pool) -> axum::Router {
+pub fn route(db: deadpool_postgres::Pool) -> axum::Router
+{
   let state = db;
 
   return axum::Router::new()

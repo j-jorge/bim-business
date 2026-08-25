@@ -7,8 +7,9 @@ use axum::response::IntoResponse;
 pub async fn validate_request(
   db: &deadpool_postgres::Pool,
   mut request: axum::extract::Request,
-  next: axum::middleware::Next,
-) -> axum::response::Response<axum::body::Body> {
+  next: axum::middleware::Next
+) -> axum::response::Response<axum::body::Body>
+{
   if let Some(header) = request.headers().get(axum::http::header::AUTHORIZATION)
     && let Ok(token_str) = header.to_str()
   {
@@ -17,7 +18,8 @@ pub async fn validate_request(
       && let Ok(user_id_opt) = business::sessions::refresh(&t, token_str).await
       && let Ok(_) = t.commit().await
     {
-      if let Some(user_id) = user_id_opt {
+      if let Some(user_id) = user_id_opt
+      {
         request.extensions_mut().insert(user_id);
         return next.run(request).await;
       }

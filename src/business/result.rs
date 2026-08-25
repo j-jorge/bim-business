@@ -5,7 +5,8 @@ use super::*;
 // is our error type.
 pub type Result<T, E = error::Error> = std::result::Result<T, E>;
 
-pub trait OrBadParameter<T> {
+pub trait OrBadParameter<T>
+{
   fn or_bad_parameter(self) -> Result<T>;
 }
 
@@ -15,8 +16,10 @@ pub trait OrBadParameter<T> {
 impl<T, E: std::fmt::Display + std::fmt::Debug> OrBadParameter<T>
   for std::result::Result<T, E>
 {
-  fn or_bad_parameter(self) -> Result<T> {
-    if let Err(e) = self {
+  fn or_bad_parameter(self) -> Result<T>
+  {
+    if let Err(e) = self
+    {
       tracing::error!("{}", e);
       return Err(error::Error::BadParameter);
     }

@@ -4,8 +4,9 @@ use crate::business;
 use axum::response::IntoResponse;
 
 pub fn extract_auth(
-  headers: &axum::http::header::HeaderMap,
-) -> Option<&axum::http::header::HeaderValue> {
+  headers: &axum::http::header::HeaderMap
+) -> Option<&axum::http::header::HeaderValue>
+{
   return headers.get(axum::http::header::AUTHORIZATION);
 }
 
@@ -18,17 +19,20 @@ pub fn extract_auth(
 async fn valid_admin_internal(
   db: &business::db::Client,
   auth_header: Option<&axum::http::header::HeaderValue>,
-  allow_init: bool,
-) -> business::result::Result<bool> {
+  allow_init: bool
+) -> business::result::Result<bool>
+{
   if let Some(header) = auth_header
     && let Ok(token_str) = header.to_str()
   {
     return Ok(
       business::leads::validate_token(db, token_str).await?
         || (allow_init
-          && business::leads::is_in_initialization_state(db).await?),
+          && business::leads::is_in_initialization_state(db).await?)
     );
-  } else {
+  }
+  else
+  {
     tracing::error!("Missing header in request.");
   }
 
@@ -39,8 +43,9 @@ async fn valid_admin_internal(
 /// the leader list.
 async fn valid_admin(
   db: &business::db::Client,
-  auth_header: Option<&axum::http::header::HeaderValue>,
-) -> business::result::Result<bool> {
+  auth_header: Option<&axum::http::header::HeaderValue>
+) -> business::result::Result<bool>
+{
   return valid_admin_internal(db, auth_header, false).await;
 }
 
@@ -48,8 +53,9 @@ async fn valid_admin(
 /// the leader list or else that there is no configured leader.
 async fn weak_valid_admin(
   db: &business::db::Client,
-  auth_header: Option<&axum::http::header::HeaderValue>,
-) -> business::result::Result<bool> {
+  auth_header: Option<&axum::http::header::HeaderValue>
+) -> business::result::Result<bool>
+{
   return valid_admin_internal(db, auth_header, true).await;
 }
 
@@ -57,11 +63,13 @@ async fn weak_valid_admin(
 pub async fn validate_request(
   db_pool: &deadpool_postgres::Pool,
   request: axum::extract::Request,
-  next: axum::middleware::Next,
-) -> axum::response::Response<axum::body::Body> {
+  next: axum::middleware::Next
+) -> axum::response::Response<axum::body::Body>
+{
   let db_result: Result<business::db::Client, _> = db_pool.get().await;
 
-  if db_result.is_err() {
+  if db_result.is_err()
+  {
     tracing::error!("Failed to get a DB from the pool.");
     return (axum::http::StatusCode::INTERNAL_SERVER_ERROR).into_response();
   }
@@ -80,11 +88,13 @@ pub async fn validate_request(
   let r: business::result::Result<bool> =
     valid_admin(&db, extract_auth(request.headers())).await;
 
-  if r.is_err() {
+  if r.is_err()
+  {
     return (axum::http::StatusCode::INTERNAL_SERVER_ERROR).into_response();
   }
 
-  if r.unwrap() {
+  if r.unwrap()
+  {
     return next.run(request).await;
   }
 
@@ -96,11 +106,13 @@ pub async fn validate_request(
 pub async fn weak_validate_request(
   db_pool: &deadpool_postgres::Pool,
   request: axum::extract::Request,
-  next: axum::middleware::Next,
-) -> axum::response::Response<axum::body::Body> {
+  next: axum::middleware::Next
+) -> axum::response::Response<axum::body::Body>
+{
   let db_result: Result<business::db::Client, _> = db_pool.get().await;
 
-  if db_result.is_err() {
+  if db_result.is_err()
+  {
     tracing::error!("Failed to get a DB from the pool.");
     return (axum::http::StatusCode::INTERNAL_SERVER_ERROR).into_response();
   }
@@ -110,11 +122,13 @@ pub async fn weak_validate_request(
   let r: business::result::Result<bool> =
     weak_valid_admin(&db, extract_auth(request.headers())).await;
 
-  if r.is_err() {
+  if r.is_err()
+  {
     return (axum::http::StatusCode::INTERNAL_SERVER_ERROR).into_response();
   }
 
-  if r.unwrap() {
+  if r.unwrap()
+  {
     return next.run(request).await;
   }
 

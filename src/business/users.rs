@@ -2,16 +2,18 @@
 use super::*;
 
 #[derive(serde::Serialize)]
-pub struct ProfileResponse {
+pub struct ProfileResponse
+{
   pub user_id: i64,
-  pub nickname: String,
+  pub nickname: String
 }
 
 pub async fn profile(
   db: &db::Client,
   from_user_id: i64,
-  user_ids: &[i64],
-) -> result::Result<Vec<ProfileResponse>> {
+  user_ids: &[i64]
+) -> result::Result<Vec<ProfileResponse>>
+{
   let mut query = String::from(
     r"select u.user_id,
              case when u.user_id = $1
@@ -21,17 +23,18 @@ pub async fn profile(
       from user_account u
       left join nickname_override o
       on u.user_id = o.user_id
-      where u.user_id in (",
+      where u.user_id in ("
   );
   let mut separator = ' ';
   let mut parameters =
     Vec::<&(dyn tokio_postgres::types::ToSql + Sync)>::with_capacity(
-      user_ids.len() + 1,
+      user_ids.len() + 1
     );
 
   parameters.push(&from_user_id);
 
-  for (i, id) in user_ids.iter().enumerate() {
+  for (i, id) in user_ids.iter().enumerate()
+  {
     query += &format!("{}${}", separator, i + 2);
     separator = ',';
     parameters.push(id);
@@ -46,7 +49,7 @@ pub async fn profile(
     .iter()
     .map(|r| ProfileResponse {
       user_id: r.get(0),
-      nickname: r.get(1),
+      nickname: r.get(1)
     })
     .collect();
 
@@ -56,14 +59,15 @@ pub async fn profile(
 pub async fn set_nickname(
   t: &db::Transaction<'_>,
   user_id: i64,
-  nickname: &str,
-) -> result::Result<()> {
+  nickname: &str
+) -> result::Result<()>
+{
   db::execute_p(
     t,
     r"update user_account
       set nickname = $1
       where user_id = $2",
-    &[&nickname, &user_id],
+    &[&nickname, &user_id]
   )
   .await?;
 
@@ -73,14 +77,15 @@ pub async fn set_nickname(
 pub async fn override_nickname(
   t: &db::Transaction<'_>,
   user_id: i64,
-  nickname: &str,
-) -> result::Result<()> {
+  nickname: &str
+) -> result::Result<()>
+{
   db::execute_p(
     t,
     r"insert into nickname_override
       values ($1, $2)
       on conflict (user_id) do update set nickname = $2",
-    &[&user_id, &nickname],
+    &[&user_id, &nickname]
   )
   .await?;
 

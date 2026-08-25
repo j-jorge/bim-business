@@ -4,7 +4,8 @@ use base64::Engine;
 use rand::Rng;
 use rand::SeedableRng;
 
-pub fn generate_token(length: u8) -> result::Result<String> {
+pub fn generate_token(length: u8) -> result::Result<String>
+{
   let mut rng: rand::rngs::StdRng =
     rand::rngs::StdRng::try_from_rng(&mut rand::rngs::SysRng)?;
   let mut bytes: Vec<u8> = vec![0; length.into()];

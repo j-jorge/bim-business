@@ -8,39 +8,44 @@ type StateHandle = deadpool_postgres::Pool;
 async fn auth(
   state: axum::extract::State<StateHandle>,
   request: axum::extract::Request,
-  next: axum::middleware::Next,
-) -> axum::response::Response<axum::body::Body> {
+  next: axum::middleware::Next
+) -> axum::response::Response<axum::body::Body>
+{
   return auth::validate_request(&state.0, request, next).await;
 }
 
 #[derive(serde::Deserialize)]
-struct UserIdRequest {
+struct UserIdRequest
+{
   sessions: Vec<String>,
-  tokens: Vec<u64>,
+  tokens: Vec<u64>
 }
 
 #[derive(serde::Serialize)]
-struct UserIdResponse {
+struct UserIdResponse
+{
   tokens: Vec<u64>,
-  user_ids: Vec<Option<i64>>,
+  user_ids: Vec<Option<i64>>
 }
 
 async fn user_id(
   state: axum::extract::State<StateHandle>,
-  axum::Json(request): axum::Json<UserIdRequest>,
-) -> business::result::Result<axum::Json<UserIdResponse>> {
+  axum::Json(request): axum::Json<UserIdRequest>
+) -> business::result::Result<axum::Json<UserIdResponse>>
+{
   let user_ids: Vec<Option<i64>> =
     business::sessions::to_user_id(&state.0.get().await?, &request.sessions)
       .await?;
 
   return Ok(axum::Json(UserIdResponse {
     tokens: request.tokens,
-    user_ids,
+    user_ids
   }));
 }
 
 /// Configure all routes for this service.
-pub fn route(db: deadpool_postgres::Pool) -> axum::Router {
+pub fn route(db: deadpool_postgres::Pool) -> axum::Router
+{
   return axum::Router::new()
     .route("/user-id", axum::routing::post(user_id))
     .route_layer(axum::middleware::from_fn_with_state(db.clone(), auth))

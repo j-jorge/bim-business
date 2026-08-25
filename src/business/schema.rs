@@ -4,8 +4,9 @@ use super::*;
 /// Update the tables to match the state required by the current code.
 pub async fn migrate_database(
   client: &mut db::Client,
-  assets: &std::path::Path,
-) -> result::Result<()> {
+  assets: &std::path::Path
+) -> result::Result<()>
+{
   // Wrap the operations in a transaction such that we can apply
   // them all at once, thus avoiding a partial modification if
   // something fails.
@@ -21,22 +22,25 @@ pub async fn migrate_database(
     .query_opt("select value from meta_version", &[])
     .await
     .unwrap();
-  let table_version: i32 = match version_row {
+  let table_version: i32 = match version_row
+  {
     None => 0,
-    Some(r) => r.get(0),
+    Some(r) => r.get(0)
   };
   const CURRENT_VERSION: i32 = 3;
 
-  if table_version == CURRENT_VERSION {
+  if table_version == CURRENT_VERSION
+  {
     return Ok(());
   }
 
-  for i in table_version..CURRENT_VERSION {
+  for i in table_version..CURRENT_VERSION
+  {
     let n = i + 1;
     tracing::info!("Upgrading tables to {n}.");
 
     t.batch_execute(&std::fs::read_to_string(
-      assets.join(format!("db/{}.sql", n)),
+      assets.join(format!("db/{}.sql", n))
     )?)
     .await?;
   }
@@ -47,7 +51,7 @@ pub async fn migrate_database(
     r"insert into meta_version (value, date)
       values ($1, '2026-07-17 00:00:00');
 ",
-    &[&CURRENT_VERSION],
+    &[&CURRENT_VERSION]
   )
   .await?;
 

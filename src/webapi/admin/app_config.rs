@@ -3,23 +3,26 @@ use crate::business;
 use crate::webapi::admin::auth;
 
 #[derive(Clone)]
-pub struct ServiceState {
-  db: deadpool_postgres::Pool,
+pub struct ServiceState
+{
+  db: deadpool_postgres::Pool
 }
 
 /// Middleware to validate that the request comes from a leader.
 async fn auth(
   state: axum::extract::State<ServiceState>,
   request: axum::extract::Request,
-  next: axum::middleware::Next,
-) -> axum::response::Response<axum::body::Body> {
+  next: axum::middleware::Next
+) -> axum::response::Response<axum::body::Body>
+{
   return auth::validate_request(&state.0.db, request, next).await;
 }
 
 async fn update(
   state: axum::extract::State<ServiceState>,
-  axum::Json(payload): axum::Json<Vec<business::app_config::Entry>>,
-) -> business::result::Result<()> {
+  axum::Json(payload): axum::Json<Vec<business::app_config::Entry>>
+) -> business::result::Result<()>
+{
   let mut client: business::db::Client = state.0.db.get().await?;
   let transaction: business::db::Transaction<'_> = client.transaction().await?;
 
@@ -30,8 +33,9 @@ async fn update(
 
 async fn erase(
   state: axum::extract::State<ServiceState>,
-  axum::Json(keys): axum::Json<Vec<String>>,
-) -> business::result::Result<()> {
+  axum::Json(keys): axum::Json<Vec<String>>
+) -> business::result::Result<()>
+{
   let mut client: business::db::Client = state.0.db.get().await?;
   let transaction: business::db::Transaction<'_> = client.transaction().await?;
 
@@ -42,8 +46,9 @@ async fn erase(
 
 async fn value(
   state: axum::extract::State<ServiceState>,
-  axum::Json(key): axum::Json<String>,
-) -> business::result::Result<axum::Json<String>> {
+  axum::Json(key): axum::Json<String>
+) -> business::result::Result<axum::Json<String>>
+{
   let v: String =
     business::app_config::get(&state.0.db.get().await?, &key, "".to_string())
       .await;
@@ -51,8 +56,11 @@ async fn value(
   return Ok(axum::Json(v));
 }
 
-pub fn route(db: deadpool_postgres::Pool) -> axum::Router {
-  let state = ServiceState { db };
+pub fn route(db: deadpool_postgres::Pool) -> axum::Router
+{
+  let state = ServiceState {
+    db
+  };
 
   return axum::Router::new()
     .route("/update", axum::routing::post(update))

@@ -1,4 +1,13 @@
 edition = "2024"
 style_edition = "2024"
+
 max_width = 80
 tab_spaces = 2
+
+# Nightly features.
+brace_style = "AlwaysNextLine"
+control_brace_style = "AlwaysNextLine"
+struct_lit_single_line = false
+trailing_comma = "Never"
+unstable_features = true
+wrap_comments = true

@@ -3,36 +3,40 @@ use crate::business;
 use crate::webapi::admin::auth;
 
 #[derive(Clone)]
-pub struct ServiceState {
-  db: deadpool_postgres::Pool,
+pub struct ServiceState
+{
+  db: deadpool_postgres::Pool
 }
 
 /// Middleware to validate that the request comes from a leader.
 async fn auth(
   state: axum::extract::State<ServiceState>,
   request: axum::extract::Request,
-  next: axum::middleware::Next,
-) -> axum::response::Response<axum::body::Body> {
+  next: axum::middleware::Next
+) -> axum::response::Response<axum::body::Body>
+{
   return auth::validate_request(&state.0.db, request, next).await;
 }
 
 #[derive(serde::Deserialize)]
-struct OverrideNicknameRequest {
+struct OverrideNicknameRequest
+{
   user_id: i64,
-  nickname: String,
+  nickname: String
 }
 
 async fn override_nickname(
   state: axum::extract::State<ServiceState>,
-  axum::Json(request): axum::Json<OverrideNicknameRequest>,
-) -> business::result::Result<()> {
+  axum::Json(request): axum::Json<OverrideNicknameRequest>
+) -> business::result::Result<()>
+{
   let mut client: business::db::Client = state.0.db.get().await?;
   let transaction: business::db::Transaction<'_> = client.transaction().await?;
 
   business::users::override_nickname(
     &transaction,
     request.user_id,
-    &request.nickname,
+    &request.nickname
   )
   .await?;
 
@@ -40,16 +44,18 @@ async fn override_nickname(
 }
 
 #[derive(serde::Deserialize)]
-struct CoinsTransactionRequest {
+struct CoinsTransactionRequest
+{
   user_id: i64,
   amount: i64,
-  reason: String,
+  reason: String
 }
 
 async fn coins_transaction(
   state: axum::extract::State<ServiceState>,
-  axum::Json(request): axum::Json<CoinsTransactionRequest>,
-) -> business::result::Result<()> {
+  axum::Json(request): axum::Json<CoinsTransactionRequest>
+) -> business::result::Result<()>
+{
   let mut client: business::db::Client = state.db.get().await?;
   let transaction: business::db::Transaction<'_> = client.transaction().await?;
 
@@ -57,7 +63,7 @@ async fn coins_transaction(
     &transaction,
     request.user_id,
     &request.reason,
-    request.amount,
+    request.amount
   )
   .await?;
 
@@ -67,8 +73,11 @@ async fn coins_transaction(
 }
 
 /// Configure all routes for this service.
-pub fn route(db: deadpool_postgres::Pool) -> axum::Router {
-  let state = ServiceState { db };
+pub fn route(db: deadpool_postgres::Pool) -> axum::Router
+{
+  let state = ServiceState {
+    db
+  };
 
   return axum::Router::new()
     .route("/override-nickname", axum::routing::post(override_nickname))

@@ -6,16 +6,18 @@ use crate::webapi::admin::auth;
 use axum::response::IntoResponse;
 
 #[derive(Clone)]
-pub struct ServiceState {
-  db: deadpool_postgres::Pool,
+pub struct ServiceState
+{
+  db: deadpool_postgres::Pool
 }
 
 /// Middleware to validate that the request comes from a leader.
 async fn auth(
   state: axum::extract::State<ServiceState>,
   request: axum::extract::Request,
-  next: axum::middleware::Next,
-) -> axum::response::Response<axum::body::Body> {
+  next: axum::middleware::Next
+) -> axum::response::Response<axum::body::Body>
+{
   return auth::validate_request(&state.0.db, request, next).await;
 }
 
@@ -31,36 +33,45 @@ async fn auth(
  */
 async fn update(
   state: axum::extract::State<ServiceState>,
-  axum::Json(payload): axum::Json<serde_json::Value>,
-) -> axum::response::Response<axum::body::Body> {
+  axum::Json(payload): axum::Json<serde_json::Value>
+) -> axum::response::Response<axum::body::Body>
+{
   // Iterate over payload keys and values.
   // Build a Vec<business::flat_client_config::Entry> from them.
   // Send everything to the business part.
 
-  let serde_json::Value::Object(map) = payload else {
+  let serde_json::Value::Object(map) = payload
+  else
+  {
     return (axum::http::StatusCode::BAD_REQUEST).into_response();
   };
 
   let mut entries: Vec<business::flat_client_config::Entry> =
     Vec::with_capacity(map.len());
 
-  for (key, value) in map {
+  for (key, value) in map
+  {
     entries.push(business::flat_client_config::Entry {
       key,
-      value: match value {
-        serde_json::Value::String(s) => {
+      value: match value
+      {
+        serde_json::Value::String(s) =>
+        {
           business::flat_client_config::Value::Text(s)
         }
-        serde_json::Value::Number(n) => match n.as_i64() {
+        serde_json::Value::Number(n) => match n.as_i64()
+        {
           Some(v) => business::flat_client_config::Value::Int64(v),
-          _ => {
+          _ =>
+          {
             return (axum::http::StatusCode::BAD_REQUEST).into_response();
           }
         },
-        _ => {
+        _ =>
+        {
           return (axum::http::StatusCode::BAD_REQUEST).into_response();
         }
-      },
+      }
     });
   }
 
@@ -87,8 +98,9 @@ async fn update(
  */
 async fn erase(
   state: axum::extract::State<ServiceState>,
-  axum::Json(keys): axum::Json<Vec<String>>,
-) -> business::result::Result<()> {
+  axum::Json(keys): axum::Json<Vec<String>>
+) -> business::result::Result<()>
+{
   let mut client: business::db::Client = state.0.db.get().await?;
   let transaction: business::db::Transaction<'_> = client.transaction().await?;
 
@@ -99,8 +111,9 @@ async fn erase(
 
 /// List all config parameters.
 async fn list(
-  state: axum::extract::State<ServiceState>,
-) -> business::result::Result<String> {
+  state: axum::extract::State<ServiceState>
+) -> business::result::Result<String>
+{
   let mut m: std::collections::HashMap<&str, serde_json::value::Value> =
     std::collections::HashMap::new();
   let entries: Vec<business::flat_client_config::Entry> =
@@ -112,8 +125,11 @@ async fn list(
 }
 
 /// Configure all routes for this service.
-pub fn route(db: deadpool_postgres::Pool) -> axum::Router {
-  let state = ServiceState { db };
+pub fn route(db: deadpool_postgres::Pool) -> axum::Router
+{
+  let state = ServiceState {
+    db
+  };
 
   return axum::Router::new()
     .route("/update", axum::routing::post(update))

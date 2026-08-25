@@ -3,31 +3,35 @@ use crate::business;
 use crate::webapi::gs::auth;
 
 #[derive(Clone)]
-struct StateHandle {
+struct StateHandle
+{
   games: std::sync::Arc<business::games::Service>,
-  db: deadpool_postgres::Pool,
+  db: deadpool_postgres::Pool
 }
 
 /// Middleware to validate that the request comes from known game server.
 async fn auth(
   state: axum::extract::State<StateHandle>,
   request: axum::extract::Request,
-  next: axum::middleware::Next,
-) -> axum::response::Response<axum::body::Body> {
+  next: axum::middleware::Next
+) -> axum::response::Response<axum::body::Body>
+{
   return auth::validate_request(&state.0.db, request, next).await;
 }
 
 #[derive(serde::Deserialize)]
-struct GameStartedNotification {
-  players: Vec<i64>,
+struct GameStartedNotification
+{
+  players: Vec<i64>
 }
 
 #[axum::debug_handler]
 async fn game_started(
   server_id: axum::Extension<i64>,
   state: axum::extract::State<StateHandle>,
-  axum::Json(request): axum::Json<GameStartedNotification>,
-) -> business::result::Result<axum::Json<business::games::StartedResult>> {
+  axum::Json(request): axum::Json<GameStartedNotification>
+) -> business::result::Result<axum::Json<business::games::StartedResult>>
+{
   state.0.games.maybe_run_clean_up_job(&state.0.db).await;
 
   let mut client: business::db::Client = state.0.db.get().await?;
@@ -43,19 +47,21 @@ async fn game_started(
 }
 
 #[derive(serde::Deserialize)]
-struct GameOverNotification {
+struct GameOverNotification
+{
   game_id: i64,
   duration_in_seconds: u64,
   players: Vec<i64>,
-  outcome: Vec<business::games::PlayerGameOutcome>,
+  outcome: Vec<business::games::PlayerGameOutcome>
 }
 
 #[axum::debug_handler]
 async fn game_over(
   server_id: axum::Extension<i64>,
   state: axum::extract::State<StateHandle>,
-  axum::Json(request): axum::Json<GameOverNotification>,
-) -> business::result::Result<()> {
+  axum::Json(request): axum::Json<GameOverNotification>
+) -> business::result::Result<()>
+{
   let mut client: business::db::Client = state.0.db.get().await?;
   let transaction: business::db::Transaction<'_> = client.transaction().await?;
 
@@ -65,7 +71,7 @@ async fn game_over(
     request.game_id,
     std::time::Duration::from_secs(request.duration_in_seconds),
     &request.players,
-    &request.outcome,
+    &request.outcome
   )
   .await?;
 
@@ -77,9 +83,13 @@ async fn game_over(
 /// Configure all routes for this service.
 pub fn route(
   games: std::sync::Arc<business::games::Service>,
-  db: deadpool_postgres::Pool,
-) -> axum::Router {
-  let state = StateHandle { games, db };
+  db: deadpool_postgres::Pool
+) -> axum::Router
+{
+  let state = StateHandle {
+    games,
+    db
+  };
 
   return axum::Router::new()
     .route("/game-started", axum::routing::post(game_started))

@@ -3,30 +3,34 @@ use crate::business;
 use crate::webapi::gs::auth;
 
 #[derive(Clone)]
-struct StateHandle {
+struct StateHandle
+{
   game_servers: std::sync::Arc<business::game_servers::GameServers>,
-  db: deadpool_postgres::Pool,
+  db: deadpool_postgres::Pool
 }
 
 /// Middleware to validate that the request comes from known game server.
 async fn auth(
   state: axum::extract::State<StateHandle>,
   request: axum::extract::Request,
-  next: axum::middleware::Next,
-) -> axum::response::Response<axum::body::Body> {
+  next: axum::middleware::Next
+) -> axum::response::Response<axum::body::Body>
+{
   return auth::validate_request(&state.0.db, request, next).await;
 }
 
 #[derive(serde::Deserialize)]
-struct HelloRequest {
+struct HelloRequest
+{
   host: String,
   version: u64,
-  protocol_version: u64,
+  protocol_version: u64
 }
 
 #[derive(serde::Serialize)]
-struct HelloResponse {
-  callback_delay_seconds: u64,
+struct HelloResponse
+{
+  callback_delay_seconds: u64
 }
 
 /**
@@ -54,8 +58,9 @@ struct HelloResponse {
 async fn hello(
   server_id: axum::Extension<i64>,
   state: axum::extract::State<StateHandle>,
-  axum::Json(request): axum::Json<HelloRequest>,
-) -> business::result::Result<axum::Json<HelloResponse>> {
+  axum::Json(request): axum::Json<HelloRequest>
+) -> business::result::Result<axum::Json<HelloResponse>>
+{
   let callback_delay: std::time::Duration = state
     .0
     .game_servers
@@ -64,21 +69,25 @@ async fn hello(
       server_id.0,
       request.host,
       request.version,
-      request.protocol_version,
+      request.protocol_version
     )
     .await?;
 
   return Ok(axum::Json(HelloResponse {
-    callback_delay_seconds: callback_delay.as_secs(),
+    callback_delay_seconds: callback_delay.as_secs()
   }));
 }
 
 /// Configure all routes for this service.
 pub fn route(
   game_servers: std::sync::Arc<business::game_servers::GameServers>,
-  db: deadpool_postgres::Pool,
-) -> axum::Router {
-  let state = StateHandle { game_servers, db };
+  db: deadpool_postgres::Pool
+) -> axum::Router
+{
+  let state = StateHandle {
+    game_servers,
+    db
+  };
 
   return axum::Router::new()
     .route("/hello", axum::routing::post(hello))

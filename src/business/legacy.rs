@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::*;
 
-pub enum TransferResult {
+pub enum TransferResult
+{
   Disabled,
   Done,
-  AlreadyDone,
+  AlreadyDone
 }
 
 #[derive(serde::Deserialize)]
-pub struct GameStatistics {
+pub struct GameStatistics
+{
   game_count: i32,
   victory_count: i32,
-  defeat_count: i32,
+  defeat_count: i32
 }
 
 pub async fn transfer(
@@ -21,9 +23,11 @@ pub async fn transfer(
   game_features: &[String],
   slots: &[i16],
   game_feature_selection: &[inventory::GameFeatureSlotSelection],
-  arena_stats: &GameStatistics,
-) -> result::Result<TransferResult> {
-  if !app_config::get(db, "legacy.enable_transfer", false).await {
+  arena_stats: &GameStatistics
+) -> result::Result<TransferResult>
+{
+  if !app_config::get(db, "legacy.enable_transfer", false).await
+  {
     return Ok(TransferResult::Disabled);
   }
 
@@ -31,17 +35,18 @@ pub async fn transfer(
   {
     let mut query: String = String::from(
       r"insert into user_available_game_feature_slots
-      values",
+      values"
     );
     let mut parameters =
       Vec::<&(dyn tokio_postgres::types::ToSql + Sync)>::with_capacity(
-        1 + slots.len(),
+        1 + slots.len()
       );
     parameters.push(&user_id);
 
     let mut separator = ' ';
 
-    for (i, slot_index) in slots.iter().enumerate() {
+    for (i, slot_index) in slots.iter().enumerate()
+    {
       query += &format!(r"{}($1, ${})", separator, i + 2);
       parameters.push(slot_index);
       separator = ',';
@@ -56,17 +61,18 @@ pub async fn transfer(
     let mut query = String::from(
       r"insert into user_available_game_features
       select $1, game_feature.id
-      from (values ",
+      from (values "
     );
     let mut parameters =
       Vec::<&(dyn tokio_postgres::types::ToSql + Sync)>::with_capacity(
-        1 + game_features.len(),
+        1 + game_features.len()
       );
     parameters.push(&user_id);
 
     let mut separator = ' ';
 
-    for (i, name) in game_features.iter().enumerate() {
+    for (i, name) in game_features.iter().enumerate()
+    {
       query += &format!(r"{}(${})", separator, i + 2);
       parameters.push(name);
       separator = ',';
@@ -91,16 +97,18 @@ pub async fn transfer(
       &user_id,
       &arena_stats.game_count,
       &arena_stats.victory_count,
-      &arena_stats.defeat_count,
-    ],
+      &arena_stats.defeat_count
+    ]
   )
   .await?;
 
   let r: result::Result<()> =
     wallet::coins_transaction(db, user_id, "legacy", coins).await;
 
-  if let Err(error) = r {
-    if error == error::Error::UniqueViolation {
+  if let Err(error) = r
+  {
+    if error == error::Error::UniqueViolation
+    {
       return Ok(TransferResult::AlreadyDone);
     }
 
