@@ -104,6 +104,12 @@ expect_json_eq \
          {"slot_index": 0, "feature": null},
          {"slot_index": 1, "feature": "feat-3"}
        ],
-       "available_features": [ "feat-1", "feat-3", "feat-4" ]
+       "available_features": [ "feat-1", "feat-3", "feat-4" ],
+       "arena_stats":
+       {
+         "victories": 0,
+         "defeats": 0,
+         "draws": 0
+       }
      }' \
          "$tmp_dir"/me.json

@@ -84,3 +84,14 @@ alter table game_server alter column description set not null;
 alter table game_server alter column registration_date set not null;
 alter table game_server alter column last_seen set not null;
 alter table shop alter column coins set not null;
+
+-- Aggregated stats per player. This should be equivalent to the
+-- number of rows in done game player for each player and outcome.
+create table arena_stats
+(
+  user_id bigint primary key references user_account (user_id),
+  victories integer not null,
+  defeats integer not null,
+  draws integer not null,
+  kicked integer not null
+);

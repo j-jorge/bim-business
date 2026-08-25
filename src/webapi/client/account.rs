@@ -307,7 +307,8 @@ struct MeResponse
   nickname: String,
   coins: i64,
   feature_slots: Vec<business::inventory::GameFeatureSlotState>,
-  available_features: Vec<String>
+  available_features: Vec<String>,
+  arena_stats: business::users::ArenaStatsResponse
 }
 
 #[axum::debug_handler]
@@ -340,7 +341,8 @@ async fn me(
     nickname: profile.nickname,
     coins: business::wallet::coins_balance(&db, user_id.0).await?,
     feature_slots: slots,
-    available_features
+    available_features,
+    arena_stats: business::users::arena_stats(&db, user_id.0).await?
   };
 
   return Ok(axum::Json(result));

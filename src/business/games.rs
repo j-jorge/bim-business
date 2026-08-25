@@ -276,6 +276,41 @@ pub async fn over(
     db::execute_p(transaction, &query, &parameters).await?;
   }
 
+  // Update the players' stats
+  {
+    for (i, p) in players.iter().enumerate()
+    {
+      if *p == BOT_PLACEHOLDER
+      {
+        continue;
+      }
+
+      let (defeat, kicked, draw, victory) = match outcome[i]
+      {
+        PlayerGameOutcome::Defeated => (1, 0, 0, 0),
+        PlayerGameOutcome::Kicked => (0, 1, 0, 0),
+        PlayerGameOutcome::Draw => (0, 0, 1, 0),
+        PlayerGameOutcome::Victory => (0, 0, 0, 1)
+      };
+
+      db::execute_p(
+        transaction,
+        "insert into arena_stats
+         values ($1, $2, $3, $4, $5)
+         on conflict (user_id) do update set
+         (victories, defeats, draws, kicked) =
+         (
+           arena_stats.victories + excluded.victories,
+           arena_stats.defeats + excluded.defeats,
+           arena_stats.draws + excluded.draws,
+           arena_stats.kicked + excluded.kicked
+         )",
+        &[p, &victory, &defeat, &draw, &kicked]
+      )
+      .await?;
+    }
+  }
+
   // Now distribute the rewards.
   let victory_reward: i64 = if short_game
   {

@@ -8,6 +8,9 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
 . "$script_dir"/../../test-functions.sh
 start_server
 
+# shellcheck source-path=SCRIPTDIR
+. "$script_dir"/test-utility/check-player-stats.sh
+
 #-------------------------------------------------------------------------------
 # Set up.
 
@@ -212,3 +215,9 @@ expect_db 'select * from game_reward
            and user_id != '"${user_id[1]}" \
                "$tmp_dir"/reward-bot.txt
 expect_true grep --quiet '(0 rows)' "$tmp_dir"/reward-bot.txt
+
+expect_db_row_count 4 'from arena_stats'
+check_player_stats "${user_id[0]}" 1 0 0 0
+check_player_stats "${user_id[1]}" 0 0 0 1
+check_player_stats "${user_id[2]}" 1 0 0 0
+check_player_stats "${user_id[3]}" 0 0 0 1

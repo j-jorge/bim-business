@@ -2,6 +2,14 @@
 use super::*;
 
 #[derive(serde::Serialize)]
+pub struct ArenaStatsResponse
+{
+  pub victories: i32,
+  pub defeats: i32,
+  pub draws: i32
+}
+
+#[derive(serde::Serialize)]
 pub struct ProfileResponse
 {
   pub user_id: i64,
@@ -90,4 +98,33 @@ pub async fn override_nickname(
   .await?;
 
   return Ok(());
+}
+
+pub async fn arena_stats(
+  db: &db::Client,
+  user_id: i64
+) -> result::Result<ArenaStatsResponse>
+{
+  let row_opt: Option<tokio_postgres::Row> = db
+    .query_opt(
+      r"select victories, defeats, draws
+      from arena_stats
+      where user_id = $1",
+      &[&user_id]
+    )
+    .await?;
+
+  if let Some(row) = row_opt
+  {
+    return Ok(ArenaStatsResponse {
+      victories: row.get(0),
+      defeats: row.get(1),
+      draws: row.get(2)
+    });
+  }
+  return Ok(ArenaStatsResponse {
+    victories: 0,
+    defeats: 0,
+    draws: 0
+  });
 }
