@@ -300,6 +300,52 @@ async fn wallet(
   }));
 }
 
+#[derive(serde::Serialize)]
+struct MeResponse
+{
+  user_id: i64,
+  nickname: String,
+  coins: i64,
+  feature_slots: Vec<business::inventory::GameFeatureSlotState>,
+  available_features: Vec<String>
+}
+
+#[axum::debug_handler]
+async fn me(
+  user_id: axum::Extension<i64>,
+  state: axum::extract::State<ServiceState>
+) -> business::result::Result<axum::Json<MeResponse>>
+{
+  let db: business::db::Client = state.0.db.get().await?;
+  let mut profiles: Vec<business::users::ProfileResponse> =
+    business::users::profile(&db, user_id.0, &[user_id.0]).await?;
+
+  if profiles.len() != 1
+  {
+    return Err(business::error::Error::BadParameter);
+  }
+
+  let profile: business::users::ProfileResponse = profiles.remove(0);
+
+  let mut slots: Vec<business::inventory::GameFeatureSlotState> =
+    business::inventory::user_selected_game_features(&db, user_id.0).await?;
+  let mut available_features: Vec<String> =
+    business::inventory::user_available_game_features(&db, user_id.0).await?;
+
+  slots.sort_by_key(|s| s.slot_index);
+  available_features.sort();
+
+  let result = MeResponse {
+    user_id: user_id.0,
+    nickname: profile.nickname,
+    coins: business::wallet::coins_balance(&db, user_id.0).await?,
+    feature_slots: slots,
+    available_features
+  };
+
+  return Ok(axum::Json(result));
+}
+
 pub fn route(
   session_service: std::sync::Arc<business::sessions::Service>,
   db: deadpool_postgres::Pool
@@ -315,6 +361,7 @@ pub fn route(
       "/account/update-nickname",
       axum::routing::post(update_nickname)
     )
+    .route("/me", axum::routing::post(me))
     .route("/profile", axum::routing::post(profile))
     .route(
       "/transfer-legacy-inventory",
