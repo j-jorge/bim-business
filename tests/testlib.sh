@@ -191,19 +191,30 @@ expect_eq()
 # abc` fails.
 expect_ne()
 {
-    if (( $# != 2 ))
+    if (( $# < 2 ))
     then
         fail_count=$((fail_count + 1))
-        fail "Expected two arguments, got $#:" "$@"
+        fail "Expected two or more arguments, got $#:" "$@"
         return
     fi
 
-    if [[ "$1" != "$2" ]]
+    local lhs="$1"
+    local rhs="$2"
+    shift 2
+
+    local extra=()
+
+    if [[ $# != 0 ]]
     then
-        pass "'$2' != '$1'."
+        extra=('(' "$@" ')')
+    fi
+
+    if [[ "$lhs" != "$rhs" ]]
+    then
+        pass "'$lhs' != '$rhs'." "${extra[@]}"
     else
         fail_count=$((fail_count + 1))
-        fail "'$2' != '$1'."
+        fail "'$lhs' != '$rhs'." "${extra[@]}"
     fi
 }
 
