@@ -63,7 +63,7 @@ user_id_2="$(jq -r .user_id "$tmp_dir"/authenticate-2.json)"
 expect_db_row_exists "select * from sessions where token = '$session_token_1'"
 expect_db_row_exists "select * from sessions where token = '$session_token_2'"
 
-expect_ne "$session_token_1" "$session_token_2"
+expect_ne "$session_token_1" "$session_token_2" "Session 1 vs 2"
 expect_ne "$user_id_1" "$user_id_2"
 
 # Authenticate the first client again, we should get the same response.
@@ -74,7 +74,7 @@ expect_post client/authenticate \
 session_token_1b="$(jq -r .session_token "$tmp_dir"/authenticate-3.json)"
 user_id_1b="$(jq -r .user_id "$tmp_dir"/authenticate-3.json)"
 
-expect_eq "$session_token_1b" "$session_token_1"
+expect_eq "$session_token_1b" "$session_token_1" "Session 1b vs 1"
 expect_eq "$user_id_1b" "$user_id_1"
 
 # Authenticate the second client again. Its sessions should be expired
@@ -89,6 +89,6 @@ user_id_2b="$(jq -r .user_id "$tmp_dir"/authenticate-4.json)"
 expect_db_row_absent "select * from sessions where token = '$session_token_2'"
 expect_db_row_exists "select * from sessions where token = '$session_token_2b'"
 
-expect_ne "$session_token_1b" "$session_token_2b"
-expect_ne "$session_token_2" "$session_token_2b"
+expect_ne "$session_token_1b" "$session_token_2b" "Session 1b vs 2b"
+expect_ne "$session_token_2" "$session_token_2b" "Session 2 vs 2b"
 expect_eq "$user_id_2" "$user_id_2b"

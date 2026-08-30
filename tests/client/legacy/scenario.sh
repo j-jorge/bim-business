@@ -61,13 +61,13 @@ expect_post client/transfer-legacy-inventory \
                       {
                         "game_count": 200,
                         "victory_count": 100,
-                        "defeat_count": 50
+                        "defeat_count": 60
                       }
                     }' \
             -o "$tmp_dir"/transfer-1.json
 expect_json_eq '{"transfer_state": 0}' "$tmp_dir"/transfer-1.json
 
-expect_db "select * from user_arena_statistics;" "$tmp_dir"/db-user-stats-1.txt
+expect_db "select * from arena_stats;" "$tmp_dir"/db-user-stats-1.txt
 expect_true grep --quiet '(0 rows)' "$tmp_dir"/db-user-stats-1.txt
 
 expect_post client/wallet \
@@ -113,24 +113,24 @@ expect_post client/transfer-legacy-inventory \
                       {
                         "game_count": 200,
                         "victory_count": 100,
-                        "defeat_count": 50
+                        "defeat_count": 60
                       }
                     }' \
             -o "$tmp_dir"/transfer-2.json
 expect_json_eq '{"transfer_state": 1}' "$tmp_dir"/transfer-2.json
 
-expect_db "select * from user_arena_statistics;" "$tmp_dir"/db-user-stats-2.txt
+expect_db "select * from arena_stats;" "$tmp_dir"/db-user-stats-2.txt
 expect_true grep --quiet \
             '^user_id *| *'"$user_id"'$' \
-            "$tmp_dir"/db-user-stats-2.txt
-expect_true grep --quiet \
-            '^game_count *| *200$' \
             "$tmp_dir"/db-user-stats-2.txt
 expect_true grep --quiet \
             '^victories *| *100$' \
             "$tmp_dir"/db-user-stats-2.txt
 expect_true grep --quiet \
-            '^defeats *| *50$' \
+            '^defeats *| *60$' \
+            "$tmp_dir"/db-user-stats-2.txt
+expect_true grep --quiet \
+            '^draws *| *40$' \
             "$tmp_dir"/db-user-stats-2.txt
 expect_eval_eq 1 "grep --count '^user_id' '$tmp_dir'/db-user-stats-2.txt"
 
@@ -193,17 +193,17 @@ expect_json_eq '{
                 }' \
                "$tmp_dir"/inventory-3.json
 
-expect_db "select * from user_arena_statistics;" "$tmp_dir"/db-user-stats-3.txt
+expect_db "select * from arena_stats;" "$tmp_dir"/db-user-stats-3.txt
 expect_true grep --quiet \
             '^user_id *| *'"$user_id"'$' \
-            "$tmp_dir"/db-user-stats-3.txt
-expect_true grep --quiet \
-            '^game_count *| *200$' \
             "$tmp_dir"/db-user-stats-3.txt
 expect_true grep --quiet \
             '^victories *| *100$' \
             "$tmp_dir"/db-user-stats-3.txt
 expect_true grep --quiet \
-            '^defeats *| *50$' \
+            '^defeats *| *60$' \
+            "$tmp_dir"/db-user-stats-3.txt
+expect_true grep --quiet \
+            '^draws *| *40$' \
             "$tmp_dir"/db-user-stats-3.txt
 expect_eval_eq 1 "grep --count '^user_id' '$tmp_dir'/db-user-stats-3.txt"

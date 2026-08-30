@@ -86,6 +86,65 @@ expect_post client/game-feature/assign-slots \
                       ]
                     }'
 
+# Register a game server.
+expect_post admin/game-servers/register \
+            -H "Authorization: $admin_token" \
+            -H "Content-Type: application/json" \
+            --data '{"name": "gs", "description": "..."}' \
+            -o "$tmp_dir"/"gs-1.json"
+gs_token="$(jq -r .token "$tmp_dir"/gs-1.json)"
+
+expect_post client/authenticate \
+            --header "Content-Type: application/json" \
+            --data '{"device_id": "def"}' \
+            -o "$tmp_dir"/authenticate-2.json
+user_id_2="$(jq -r .user_id "$tmp_dir"/authenticate-2.json)"
+
+function add_game_result()
+{
+    local outcome_1="$1"
+    local outcome_2="$2"
+
+    expect_post gs/game-started \
+                --header "Authorization: $gs_token" \
+                --header "Content-Type: application/json" \
+                --data '{
+                      "players":
+                      [
+                        '"$user_id"',
+                        '"$user_id_2"'
+                      ]
+                    }' \
+                        -o "$tmp_dir"/game-1.json
+    game_id_1="$(jq -r .game_id "$tmp_dir"/game-1.json)"
+
+    expect_post gs/game-over \
+                --header "Authorization: $gs_token" \
+                --header "Content-Type: application/json" \
+                --data '{
+                      "game_id": '"$game_id_1"',
+                      "duration_in_seconds": 5,
+                      "players":
+                      [
+                        '"$user_id"',
+                        '"$user_id_2"'
+                      ],
+                      "outcome": ["'"$outcome_1"'", "'"$outcome_2"'"]
+                    }'
+}
+
+add_game_result victory defeated
+
+for _ in {1..2}
+do
+    add_game_result defeated victory
+done
+
+for _ in {1..3}
+do
+    add_game_result draw draw
+done
+
 #-------------------------------------------------------------------------------
 # Actual tests
 
@@ -107,9 +166,9 @@ expect_json_eq \
        "available_features": [ "feat-1", "feat-3", "feat-4" ],
        "arena_stats":
        {
-         "victories": 0,
-         "defeats": 0,
-         "draws": 0
+         "victories": 1,
+         "defeats": 2,
+         "draws": 3
        }
      }' \
          "$tmp_dir"/me.json

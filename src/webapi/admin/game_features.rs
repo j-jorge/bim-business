@@ -24,8 +24,8 @@ async fn auth(
  *
  * Example:
  * [
- *   {"id": "feature-1", "coins": 200},
- *   {"id": "feature-2", "coins": 500}
+ *   {"name": "feature-1", "coins": 200},
+ *   {"name": "feature-2", "coins": 500}
  * ]
  */
 async fn update(

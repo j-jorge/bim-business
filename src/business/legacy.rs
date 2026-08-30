@@ -90,14 +90,16 @@ pub async fn transfer(
 
   db::execute_p(
     db,
-    r"insert into user_arena_statistics
-      values ($1, $2, $3, $4)
+    r"insert into arena_stats
+      values ($1, $2, $3, $4, 0)
       on conflict do nothing",
     &[
       &user_id,
-      &arena_stats.game_count,
       &arena_stats.victory_count,
-      &arena_stats.defeat_count
+      &arena_stats.defeat_count,
+      &(arena_stats.game_count
+        - arena_stats.victory_count
+        - arena_stats.defeat_count)
     ]
   )
   .await?;
