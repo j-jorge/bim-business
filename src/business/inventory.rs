@@ -56,13 +56,18 @@ pub async fn user_selected_game_features(
 {
   return db::collect_p(
     db,
-    r"SELECT available.slot_index, feature.name
-      FROM user_available_game_feature_slots AS available
-      LEFT JOIN user_selected_game_features AS selected
-      ON available.slot_index = selected.slot_index
-      LEFT JOIN game_feature as feature
-      ON selected.feature_id = feature.id
-      WHERE available.user_id = $1",
+    r"select available.slot_index, feature.name
+      from (select *
+            from user_available_game_feature_slots
+            where user_id = $1)
+      as available
+      left join (select *
+                 from user_selected_game_features
+                 where user_id = $1)
+      as selected
+      on available.slot_index = selected.slot_index
+      left join game_feature as feature
+      on selected.feature_id = feature.id",
     &[&user_id],
     |row| GameFeatureSlotState {
       slot_index: row.get(0),
