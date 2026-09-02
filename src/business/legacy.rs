@@ -32,6 +32,7 @@ pub async fn transfer(
   }
 
   // Enable the slots.
+  if !slots.is_empty()
   {
     let mut query: String = String::from(
       r"insert into user_available_game_feature_slots
@@ -57,6 +58,7 @@ pub async fn transfer(
   }
 
   // Enable the game features.
+  if !game_features.is_empty()
   {
     let mut query = String::from(
       r"insert into user_available_game_features
@@ -85,8 +87,11 @@ pub async fn transfer(
     db::execute_p(db, &query, &parameters[..]).await?;
   }
 
-  inventory::user_select_game_features(db, user_id, game_feature_selection)
-    .await?;
+  if !game_feature_selection.is_empty()
+  {
+    inventory::user_select_game_features(db, user_id, game_feature_selection)
+      .await?;
+  }
 
   db::execute_p(
     db,
