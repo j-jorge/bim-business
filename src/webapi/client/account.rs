@@ -260,11 +260,17 @@ async fn assign_game_feature_slots(
   return Ok(());
 }
 
+#[derive(serde::Deserialize)]
+struct ClearGameFeatureSlotRequest
+{
+  slot_index: i16
+}
+
 #[axum::debug_handler]
 async fn clear_game_feature_slot(
   user_id: axum::Extension<i64>,
   state: axum::extract::State<ServiceState>,
-  axum::Json(slot_index): axum::Json<i16>
+  axum::Json(request): axum::Json<ClearGameFeatureSlotRequest>
 ) -> business::result::Result<()>
 {
   let mut client: business::db::Client = state.0.db.get().await?;
@@ -273,7 +279,7 @@ async fn clear_game_feature_slot(
   business::inventory::user_clear_game_feature_slot(
     &transaction,
     user_id.0,
-    slot_index
+    request.slot_index
   )
   .await?;
 

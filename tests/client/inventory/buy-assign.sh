@@ -166,7 +166,7 @@ expect_json_eq '{
 expect_post client/game-feature/clear-slot \
             --header "Authorization: $session_token" \
             --header "Content-Type: application/json" \
-            --data '1'
+            --data '{"slot_index": 1}'
 expect_post client/game-feature/inventory \
             --header "Authorization: $session_token" \
             -o "$tmp_dir"/inventory-4.json
@@ -216,7 +216,7 @@ expect_post_error 409 client/game-feature/buy-slot \
 expect_post client/game-feature/clear-slot \
             --header "Authorization: $session_token" \
             --header "Content-Type: application/json" \
-            --data '0'
+            --data '{"slot_index": 0}'
 expect_post client/game-feature/inventory \
             --header "Authorization: $session_token" \
             -o "$tmp_dir"/inventory-6.json
@@ -234,7 +234,7 @@ expect_json_eq '{
 expect_post client/game-feature/clear-slot \
             --header "Authorization: $session_token" \
             --header "Content-Type: application/json" \
-            --data '0'
+            --data '{"slot_index": 0}'
 expect_post client/game-feature/inventory \
             --header "Authorization: $session_token" \
             -o "$tmp_dir"/inventory-7.json
