@@ -31,7 +31,7 @@ expect_post admin/app-config/update \
                       },
                       {
                         "key": "games.coins_per_defeat",
-                        "value": "2"
+                        "value": "0"
                       },
                       {
                         "key": "games.coins_per_draw",
@@ -128,4 +128,4 @@ expect_post client/game/consume-reward \
                       "game_id": '"$game_id_1"'
                     }' \
                         -o "$tmp_dir"/reward-2.json
-expect_json_eq '{"coins": 2}' "$tmp_dir"/reward-2.json
+expect_json_eq '{"coins": 0}' "$tmp_dir"/reward-2.json
