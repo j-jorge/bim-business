@@ -357,26 +357,14 @@ pub async fn over(
       PlayerGameOutcome::Victory => (victory_reward, "game-victory")
     };
 
-    if coins == 0
-    {
-      db::execute_p(
-        transaction,
-        r"delete from game_reward where user_id = $1",
-        &[p]
-      )
-      .await?;
-    }
-    else
-    {
-      db::execute_p(
-        transaction,
-        r"insert into game_reward
+    db::execute_p(
+      transaction,
+      r"insert into game_reward
           values ($1, $2, $3)
           on conflict (user_id) do update set (game_id, coins) = ($1, $3)",
-        &[&game_id, p, &coins]
-      )
-      .await?;
-    }
+      &[&game_id, p, &coins]
+    )
+    .await?;
 
     wallet::coins_transaction(transaction, *p, reason, coins).await?;
   }
@@ -405,6 +393,8 @@ pub async fn consume_reward(
     let coins: i64 = row.get(0);
     return Ok(coins);
   }
+
+  tracing::error!("No reward in game {} for user {}.", game_id, user_id);
 
   return Err(error::Error::BadParameter);
 }
