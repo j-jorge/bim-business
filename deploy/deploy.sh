@@ -175,6 +175,7 @@ BIM_DB_NAME="$bim_db_name"
 BIM_DB_USER="$bim_db_user"
 BIM_TAG="$tag"
 BIM_PORT=$bim_port
+BIM_CLIENT_APP_ID="$bim_client_app_id"
 EOF
 
 json_db_password="$(echo "${bim_db_password}" \
@@ -182,6 +183,11 @@ json_db_password="$(echo "${bim_db_password}" \
 cat > "$archive_path"/bim/etc/secrets.json <<EOF
 {"db_password": $json_db_password}
 EOF
+
+# bim_google_cloud_credentials is set by the config file.
+#
+# shellcheck disable=SC2154
+cp "$bim_google_cloud_credentials" "$archive_path"/bim/etc/googleapi.json
 
 # A script to start the new server
 cat > "$archive_path"/"bim-business-launch.sh" <<EOF

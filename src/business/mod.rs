@@ -2,6 +2,7 @@
 mod token;
 
 pub mod app_config;
+pub mod billing;
 pub mod db;
 pub mod error;
 pub mod flat_client_config;

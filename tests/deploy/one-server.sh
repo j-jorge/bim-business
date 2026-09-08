@@ -56,11 +56,15 @@ stop_server_on_exit()
 
 push_on_exit stop_server_on_exit
 
+echo "{}" > "$tmp_dir"/credentials.json
+
 cat > "$tmp_dir"/testing.conf <<EOF
 bim_db_password=test-password
 bim_db_name=test-db
 bim_db_user=test-user
 bim_port=$app_port
+bim_client_app_id=bim.app.test
+bim_google_cloud_credentials="$tmp_dir"/credentials.json
 EOF
 
 deploy_command=("$repo_root"/deploy/deploy.sh

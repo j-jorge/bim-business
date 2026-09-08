@@ -83,3 +83,30 @@ impl From<std::num::TryFromIntError> for Error
     return Error::Internal;
   }
 }
+
+impl From<google_cloud_auth::build_errors::Error> for Error
+{
+  fn from(e: google_cloud_auth::build_errors::Error) -> Error
+  {
+    tracing::error!("Failed to build Google Cloud credentials: {}'", e);
+    return Error::Internal;
+  }
+}
+
+impl From<google_cloud_auth::errors::CredentialsError> for Error
+{
+  fn from(e: google_cloud_auth::errors::CredentialsError) -> Error
+  {
+    tracing::error!("Failed to set Google Cloud credentials: {}'", e);
+    return Error::Internal;
+  }
+}
+
+impl From<reqwest::Error> for Error
+{
+  fn from(e: reqwest::Error) -> Error
+  {
+    tracing::error!("Failed to send HTTP request: {}'", e);
+    return Error::Internal;
+  }
+}

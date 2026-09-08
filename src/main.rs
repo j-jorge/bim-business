@@ -36,7 +36,15 @@ struct Arguments
 
   /// the directory with the assets.
   #[argh(option)]
-  assets: std::path::PathBuf
+  assets: std::path::PathBuf,
+
+  /// package ID of the Android client.
+  #[argh(option)]
+  client_package_id: Option<String>,
+
+  /// path to the credentials to query Google cloud
+  #[argh(option)]
+  google_cloud_credentials: Option<std::path::PathBuf>
 }
 
 #[derive(serde::Deserialize)]
@@ -99,7 +107,7 @@ async fn main() -> Result<()>
   let games = std::sync::Arc::new(business::games::Service::new());
 
   // Register the web services.
-  let router = axum::Router::new()
+  let mut router = axum::Router::new()
     .nest(
       "/admin/flat-client-config",
       webapi::admin::flat_client_config::route(pool.clone())
@@ -140,8 +148,50 @@ async fn main() -> Result<()>
       "/gs/",
       webapi::gs::hello::route(game_servers.clone(), pool.clone())
     )
-    .nest("/gs/", webapi::gs::users::route(pool.clone()))
-    .layer(tower_http::trace::TraceLayer::new_for_http());
+    .nest("/gs/", webapi::gs::users::route(pool.clone()));
+
+  let billing_service = std::sync::Arc::new(business::billing::Billing::new(
+    if let Some(package_id) = arguments.client_package_id
+    {
+      if package_id.contains("test")
+      {
+        tracing::warn!(
+          "Testing detected from package {}. DISABLING PURCHASE VALIDATION.",
+          package_id
+        );
+
+        None
+      }
+      else if let Some(credentials_path) = arguments.google_cloud_credentials
+      {
+        Some(business::billing::GoogleConfig {
+          package_id,
+          credentials_path
+        })
+      }
+      else
+      {
+        tracing::warn!(
+          "Google credentials are not provided. Purchase validation is disabled."
+        );
+        None
+      }
+    }
+    else
+    {
+      tracing::warn!(
+        "Client's package ID is not provided. Purchase validation is disabled."
+      );
+      None
+    }
+  )?);
+
+  router = router.nest(
+    "/client/",
+    webapi::client::billing::route(billing_service.clone(), pool.clone())
+  );
+
+  router = router.layer(tower_http::trace::TraceLayer::new_for_http());
 
   // And finally, launch the server.
   let address = std::net::SocketAddr::new(

@@ -11,8 +11,11 @@ axum-server = "0.8"
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 deadpool-postgres = "0.14"
+google-cloud-auth = "1.16"
+http = "1.5"
 postgres-types = { version = "0.2", features = ["derive"] }
 rand = { version = "0.10", features = ["std_rng"] }
+reqwest = "0.13"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 strum = { version = "0.28.0", features = ["derive"] }

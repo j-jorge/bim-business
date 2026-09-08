@@ -55,4 +55,6 @@ services:
       --db-port 5432
       --db-name ${BIM_DB_NAME}
       --db-user ${BIM_DB_USER}
+      --client-package-id ${BIM_CLIENT_APP_ID}
+      --google-cloud-credentials /opt/bim/etc/googleapi.json
       --secrets /opt/bim/etc/secrets.json

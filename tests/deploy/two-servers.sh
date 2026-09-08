@@ -46,11 +46,15 @@ push_on_exit stop_servers_on_exit
 prod_port="$app_port"
 stage_port="$((app_port * 2))"
 
+echo "{}" > "$tmp_dir"/credentials.json
+
 cat > "$prod_dir".conf <<EOF
 bim_db_password=test-password
 bim_db_name=test-db
 bim_db_user=test-user
 bim_port=$prod_port
+bim_client_app_id=bim.app.test
+bim_google_cloud_credentials="$tmp_dir"/credentials.json
 EOF
 
 cat > "$stage_dir".conf <<EOF
@@ -58,6 +62,8 @@ bim_db_password=test-password
 bim_db_name=test-db
 bim_db_user=test-user
 bim_port=$stage_port
+bim_client_app_id=bim.app.test
+bim_google_cloud_credentials="$tmp_dir"/credentials.json
 EOF
 
 info "Deploy and start the prod server."
