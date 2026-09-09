@@ -1,3 +1,6 @@
+truncate table meta_version;
+insert into meta_version values (0, '2026-07-17 00:00:00');
+
 -- Let's have a fake user for the bots as it simplifies foreign keys
 -- in game tables.
 insert into user_account

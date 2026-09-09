@@ -27,37 +27,33 @@ pub async fn migrate_database(
     None => 0,
     Some(r) => r.get(0)
   };
-  const CURRENT_VERSION: i32 = 3;
 
-  if table_version == CURRENT_VERSION
+  let mut final_version: i32 = table_version;
+
+  loop
   {
-    return Ok(());
+    let sql_file: std::path::PathBuf =
+      assets.join(format!("db/{}.sql", final_version + 1));
+
+    if !std::fs::exists(&sql_file)?
+    {
+      break;
+    }
+
+    final_version += 1;
+    tracing::info!("Upgrading tables to {final_version}.");
+
+    t.batch_execute(&std::fs::read_to_string(sql_file)?).await?;
   }
 
-  for i in table_version..CURRENT_VERSION
+  if final_version != table_version
   {
-    let n = i + 1;
-    tracing::info!("Upgrading tables to {n}.");
-
-    t.batch_execute(&std::fs::read_to_string(
-      assets.join(format!("db/{}.sql", n))
-    )?)
-    .await?;
+    t.execute(r"update meta_version set value = $1", &[&final_version])
+      .await?;
+    t.commit().await?;
   }
 
-  // Update the schema version too, in the same transaction.
-  t.batch_execute(r"truncate table meta_version;").await?;
-  t.execute(
-    r"insert into meta_version (value, date)
-      values ($1, '2026-07-17 00:00:00');
-",
-    &[&CURRENT_VERSION]
-  )
-  .await?;
-
-  t.commit().await?;
-
-  tracing::info!("Migration done. Final version is {}.", CURRENT_VERSION);
+  tracing::info!("Migration done. Final version is {}.", final_version);
 
   return Ok(());
 }
