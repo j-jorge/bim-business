@@ -49,16 +49,16 @@ async fn register(
   axum::Json<business::game_servers::RegistrationResult>
 >
 {
+  let mut client: business::db::Client = state.0.db.get().await?;
+  let transaction: business::db::Transaction<'_> = client.transaction().await?;
   let game_servers: &business::game_servers::GameServers =
     &state.0.game_servers;
 
   let r: business::game_servers::RegistrationResult = game_servers
-    .register(
-      &state.0.db.get().await?,
-      &request.name,
-      &request.description
-    )
+    .register(&transaction, &request.name, &request.description)
     .await?;
+
+  transaction.commit().await?;
 
   return Ok(axum::Json(r));
 }

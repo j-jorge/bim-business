@@ -52,7 +52,9 @@ struct Internals
   m_online_servers: Vec<OnlineServerInfo>
 }
 
-async fn clean_up_delay(db: &db::Client) -> std::time::Duration
+async fn clean_up_delay(
+  db: &impl deadpool_postgres::GenericClient
+) -> std::time::Duration
 {
   return std::time::Duration::from_mins(
     app_config::get_u64(db, "game_servers.clean_up_interval.minutes", 5).await
@@ -109,7 +111,7 @@ impl GameServers
   /// Register a new game server, returns its token.
   pub async fn register(
     &self,
-    db: &db::Client,
+    t: &db::Transaction<'_>,
     name: &str,
     description: &str
   ) -> result::Result<RegistrationResult>
@@ -117,7 +119,7 @@ impl GameServers
     let now: std::time::SystemTime = std::time::SystemTime::now();
     let token: String = token::generate_token(32)?;
     let id: i64 = db::query_one_p(
-      db,
+      t,
       "insert into game_server
        values ($1, $2, $3, $4, $5, default)
        returning id",
@@ -134,7 +136,7 @@ impl GameServers
 
   pub async fn hello(
     &self,
-    db: &db::Client,
+    t: &db::Transaction<'_>,
     id: i64,
     host: String,
     version: u64,
@@ -154,9 +156,18 @@ impl GameServers
       return Err(error::Error::BadParameter);
     }
 
+    let now: std::time::SystemTime = std::time::SystemTime::now();
+
+    db::execute_p(
+      t,
+      "update game_server set last_seen = $1 where id = $2",
+      &[&now, &id]
+    )
+    .await?;
+
     let internals = &mut self.m_internals.write().await;
 
-    let removal_delay = clean_up_delay(db).await;
+    let removal_delay: std::time::Duration = clean_up_delay(t).await;
     let removal_date = std::time::Instant::now() + removal_delay;
 
     if let Some(ref mut info) =

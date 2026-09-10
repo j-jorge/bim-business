@@ -61,17 +61,22 @@ async fn hello(
   axum::Json(request): axum::Json<HelloRequest>
 ) -> business::result::Result<axum::Json<HelloResponse>>
 {
+  let mut client: business::db::Client = state.0.db.get().await?;
+  let transaction: business::db::Transaction<'_> = client.transaction().await?;
+
   let callback_delay: std::time::Duration = state
     .0
     .game_servers
     .hello(
-      &state.0.db.get().await?,
+      &transaction,
       server_id.0,
       request.host,
       request.version,
       request.protocol_version
     )
     .await?;
+
+  transaction.commit().await?;
 
   return Ok(axum::Json(HelloResponse {
     callback_delay_seconds: callback_delay.as_secs()
