@@ -154,7 +154,7 @@ archive_path="$tmp_dir"/bim-business-"$prod_or_dev"
 
 mkdir --parents "$archive_path"/bim/{bin,etc,host}
 cp "$script_dir"/docker-compose.yml \
-   "$script_dir"/dockerfile.db \
+   "$script_dir"/dockerfile.* \
    "$archive_path"/
 cp --recursive \
    "$script_dir"/../assets \

@@ -30,7 +30,9 @@ services:
     container_name: bim-business-app-${BIM_TAG}
     depends_on:
       - db
-    image: debian:forky
+    build:
+      context: .
+      dockerfile: dockerfile.app
     ports:
       - ${BIM_PORT}:4209
     user: ${UID}:${GID}
