@@ -20,7 +20,7 @@ struct ProductPurchase
   #[serde(rename = "orderId")]
   order_id: String,
 
-  quantity: i32
+  quantity: Option<i32>
 }
 
 struct GoogleValidationResources
@@ -56,15 +56,16 @@ async fn validate_with_google(
   );
 
   // First, let's check the current state of the purchase according to Google.
-  let purchase: ProductPurchase = google
+  let response: reqwest::Response = google
     .http_client
     .get(&google_validation_url)
     .headers(google.headers.clone())
     .send()
     .await?
-    .error_for_status()?
-    .json()
-    .await?;
+    .error_for_status()?;
+
+  let body: String = response.text().await?;
+  let purchase: ProductPurchase = serde_json::from_str(&body)?;
 
   const PURCHASE_STATE_PURCHASED: i32 = 0;
   const CONSUMPTION_STATE_CONSUMED: i32 = 1;
@@ -110,7 +111,7 @@ async fn validate_with_google(
     .await?
     .error_for_status()?;
 
-  return Ok((purchase.order_id, purchase.quantity));
+  return Ok((purchase.order_id, purchase.quantity.unwrap_or(1)));
 }
 
 pub struct Billing
