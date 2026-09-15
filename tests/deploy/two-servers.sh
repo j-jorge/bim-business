@@ -54,7 +54,9 @@ bim_db_name=test-db
 bim_db_user=test-user
 bim_port=$prod_port
 bim_client_app_id=bim.app.test
+bim_tag=prod-test
 bim_google_cloud_credentials="$tmp_dir"/credentials.json
+bim_destination_root="$tmp_dir"
 EOF
 
 cat > "$stage_dir".conf <<EOF
@@ -63,7 +65,10 @@ bim_db_name=test-db
 bim_db_user=test-user
 bim_port=$stage_port
 bim_client_app_id=bim.app.test
+bim_tag=stage-test
 bim_google_cloud_credentials="$tmp_dir"/credentials.json
+bim_destination_root="$tmp_dir"
+bim_prod_or_dev=dev
 EOF
 
 info "Deploy and start the prod server."

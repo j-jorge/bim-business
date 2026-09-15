@@ -64,14 +64,14 @@ bim_db_name=test-db
 bim_db_user=test-user
 bim_port=$app_port
 bim_client_app_id=bim.app.test
+bim_tag=testing
 bim_google_cloud_credentials="$tmp_dir"/credentials.json
+bim_destination_root="$tmp_dir"
 EOF
 
 deploy_command=("$repo_root"/deploy/deploy.sh
                 --build-type "$build_type"
                 --config "$tmp_dir"/testing.conf
-                --destination-root "$tmp_dir"
-                --tag testing
                )
 
 info "Deploy and start the server."

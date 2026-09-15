@@ -13,22 +13,10 @@ Where OPTIONS is
   --build-type [ debug | release ]
      Mandatory. The build to upload.
   --config FILE
-     The config file from which we get the configuration of the app.
-  --destination-root PATH
-     The root folder where the deployment is done. The archive will be
-     created in this directory but the server will be deployed in
-     --tag interpreted as a subdirectory of PATH.
-  --dev
-     This is a developer deployment, it won't be guarded against
-     accidental replacement.
+     The config file from which we get the configuration of this
+     script for the app.
   -h, --help
      Display this message and exit.
-  --host
-     The host that will receive the files. If no host is given, the
-     deployment is done on localhost.
-  --tag NAME
-     A tag to give to this service. This will be used as a directory
-     in --destination-root, into which the server will be deployed.
 EOF
 }
 
@@ -37,8 +25,6 @@ then
     usage
     exit 0
 fi
-
-prod_or_dev=prod
 
 while [[ $# -ne 0 ]]
 do
@@ -64,36 +50,6 @@ do
             config_file="$1"
             shift
             ;;
-        --destination-root)
-            if [[ "$#" -eq 0 ]]
-            then
-                echo "Missing value for --destination-root." >&2
-                exit 1
-            fi
-            destination_root="$1"
-            shift
-            ;;
-        --host)
-            if [[ "$#" -eq 0 ]]
-            then
-                echo "Missing value for --host." >&2
-                exit 1
-            fi
-            host="$1"
-            shift
-            ;;
-        --dev)
-            prod_or_dev=dev
-            ;;
-        --tag)
-            if [[ "$#" -eq 0 ]]
-            then
-                echo "Missing value for --tag." >&2
-                exit 1
-            fi
-            tag="$1"
-            shift
-            ;;
     esac
 done
 
@@ -109,25 +65,6 @@ then
     exit 1
 fi
 
-if [[ -z "${destination_root:-}" ]]
-then
-    echo "--destination-root is required." >&2
-    exit 1
-fi
-
-if [[ -z "${tag:-}" ]]
-then
-    echo "--tag is required." >&2
-    exit 1
-fi
-
-if [[ -z "${host:-}" ]]
-then
-    mkdir --parents "$destination_root"
-fi
-
-destination_path="$destination_root"/"$tag"
-
 tmp_dir="$(mktemp --directory)"
 
 function clean_up()
@@ -139,18 +76,35 @@ trap clean_up EXIT
 
 function destination_exec()
 {
-    if [[ -n "${host:-}" ]]
+    if [[ -n "${bim_host:-}" ]]
     then
         # We want $1 to expand on the client side.
         # shellcheck disable=SC2029
-        ssh "$host" "$1"
+        ssh "$bim_host" "$1"
     else
         bash -c "$1"
     fi
 }
 
+# shellcheck disable=SC1090
+. "$config_file"
+
+if [[ -z "${bim_tag:-}" ]]
+then
+    echo "bim_tag must be set."
+    exit 1
+fi
+
+if [[ -z "${bim_destination_root:-}" ]]
+then
+    echo "bim_destination_root must be set."
+    exit 1
+fi
+
+bim_prod_or_dev="${bim_prod_or_dev:-prod}"
+
 # Aggregate the files to deploy
-archive_path="$tmp_dir"/bim-business-"$prod_or_dev"
+archive_path="$tmp_dir"/bim-business-"$bim_tag"
 
 mkdir --parents "$archive_path"/bim/{bin,etc,host}
 cp "$script_dir"/docker-compose.yml \
@@ -163,8 +117,12 @@ cp "$script_dir"/../target/"$build_type"/bim-business \
    "$script_dir"/bim-business-launcher.sh \
    "$archive_path"/bim/bin/
 
-# shellcheck disable=SC1090
-. "$config_file"
+if [[ -z "${bim_host:-}" ]]
+then
+    mkdir --parents "$bim_destination_root"
+fi
+
+destination_path="$bim_destination_root"/"$bim_tag"
 
 # All those variables are expected to be set by the config file.
 #
@@ -173,7 +131,7 @@ cat > "$archive_path"/.env <<EOF
 BIM_DB_PASSWORD="$bim_db_password"
 BIM_DB_NAME="$bim_db_name"
 BIM_DB_USER="$bim_db_user"
-BIM_TAG="$tag"
+BIM_TAG="$bim_tag"
 BIM_PORT=$bim_port
 BIM_CLIENT_APP_ID="$bim_client_app_id"
 EOF
@@ -201,9 +159,9 @@ cd "$destination_path"/
   echo "GID=\$(id --group)"
 ) >> .env
 
-docker compose --project-name bim-business-"$tag" up --detach
+docker compose --project-name bim-business-"$bim_tag" up --detach
 
-if [[ "$prod_or_dev" = prod ]]
+if [[ "$bim_prod_or_dev" = prod ]]
 then
     touch lock
 fi
@@ -231,20 +189,20 @@ cd "$destination_path"/
 
 if [[ -f docker-compose.yml ]]
 then
-     docker compose --project-name bim-business-"$tag" down
+     docker compose --project-name bim-business-"$bim_tag" down
 
      cd ..
      date="\$(date --iso-8601=seconds | tr -d ':')"
-     tar cfz "$tag-\$date.tgz" "$tag"
+     tar cfz "$bim_tag-\$date.tgz" "$bim_tag"
 fi
 EOF
 
 # Prepare the remote
 chmod u+x "$tmp_dir"/bim-business-pre-deploy.sh
 
-if [[ -n "${host:-}" ]]
+if [[ -n "${bim_host:-}" ]]
 then
-    rsync --progress "$tmp_dir"/bim-business-pre-deploy.sh "$host:/tmp/"
+    rsync --progress "$tmp_dir"/bim-business-pre-deploy.sh "$bim_host:/tmp/"
     destination_exec "/tmp/bim-business-pre-deploy.sh && \
                      rm /tmp/bim-business-pre-deploy.sh"
 else
@@ -252,9 +210,9 @@ else
 fi
 
 # Copy the aggregated files to the destination dir.
-if [[ -n "${host:-}" ]]
+if [[ -n "${bim_host:-}" ]]
 then
-    rsync --progress --recursive "$archive_path"/ "$host:$destination_path/"
+    rsync --progress --recursive "$archive_path"/ "$bim_host:$destination_path/"
 else
     mkdir --parents "$destination_path"
     rsync --progress --recursive "$archive_path"/ "$destination_path/"
