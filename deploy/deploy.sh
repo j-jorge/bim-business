@@ -169,6 +169,8 @@ EOF
 
 chmod u+x "$archive_path"/bim-business-launch.sh
 
+now="$(date --iso-8601=seconds | tr -d ':')"
+
 # A script to prepare the deployment of the server: we stop the old
 # server and install the new files.
 cat > "$tmp_dir"/"bim-business-pre-deploy.sh" <<EOF
@@ -192,8 +194,7 @@ then
      docker compose --project-name bim-business-"$bim_tag" down
 
      cd ..
-     date="\$(date --iso-8601=seconds | tr -d ':')"
-     tar cfz "$bim_tag-\$date.tgz" "$bim_tag"
+     tar cfz "$bim_tag-$now.tgz" "$bim_tag"
 fi
 EOF
 
@@ -205,6 +206,7 @@ then
     rsync --progress "$tmp_dir"/bim-business-pre-deploy.sh "$bim_host:/tmp/"
     destination_exec "/tmp/bim-business-pre-deploy.sh && \
                      rm /tmp/bim-business-pre-deploy.sh"
+    rsync --progress "$bim_host":"$destination_path/../$bim_tag-$now.tgz" .
 else
     "$tmp_dir"/bim-business-pre-deploy.sh
 fi
