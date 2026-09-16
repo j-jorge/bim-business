@@ -49,6 +49,19 @@ pub async fn batch_erase(
   return Ok(());
 }
 
+pub async fn all_entries(
+  db: &db::Client
+) -> result::Result<std::collections::HashMap<String, String>>
+{
+  fn row_to_entry(r: tokio_postgres::Row) -> result::Result<(String, String)>
+  {
+    return Ok((r.get(0), r.get(1)));
+  }
+
+  return db::collect(db, "select key, value from app_config", row_to_entry)
+    .await?;
+}
+
 pub async fn get<T>(
   db: &impl deadpool_postgres::GenericClient,
   key: &str,

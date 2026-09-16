@@ -4,9 +4,6 @@ usage()
 {
     cat <<EOF
 Usage: ${BASH_SOURCE[0]} [ KEY VALUE ]…
-
-Value must be quoted if it is going to be stored as a string, i.e. you
-must pass '"string_value"'.
 EOF
 }
 
@@ -23,18 +20,18 @@ then
     exit 1
 fi
 
-data='{'
+data='['
 separator=""
 
 while [[ $# != 0 ]]
 do
-    data+="$separator"'"'"$1"'":'"$2"
+    data+="$(printf '%s{"key": "%s", "value": "%d"}' "$separator" "$1" "$2")"
     separator=','
     shift 2
 done
 
-data+='}'
+data+=']'
 
-bim_curl admin/flat-client-config/update \
+bim_curl admin/app-config/update \
          --header "Content-Type: application/json" \
          --data "$data"

@@ -62,12 +62,12 @@ bim_curl()
     local path="$1"
     shift
 
-    command=(curl --fail "$BIM_BUSINESS_SERVER_URL"/"$path")
+    command=(curl --fail --silent "$BIM_BUSINESS_SERVER_URL"/"$path")
 
     if [[ "${lead_required:-0}" -eq 1 ]]
     then
         command+=(--header "Authorization: $BIM_BUSINESS_LEAD_TOKEN")
     fi
 
-    "${command[@]}" "$@"
+    "${command[@]}" "$@" | jq --sort-keys .
 }

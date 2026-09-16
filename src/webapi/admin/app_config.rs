@@ -44,16 +44,16 @@ async fn erase(
   return Ok(transaction.commit().await?);
 }
 
-async fn value(
-  state: axum::extract::State<ServiceState>,
-  axum::Json(key): axum::Json<String>
-) -> business::result::Result<axum::Json<String>>
+async fn list(
+  state: axum::extract::State<ServiceState>
+) -> business::result::Result<
+  axum::Json<std::collections::HashMap<String, String>>
+>
 {
-  let v: String =
-    business::app_config::get(&state.0.db.get().await?, &key, "".to_string())
-      .await;
+  let result: std::collections::HashMap<String, String> =
+    business::app_config::all_entries(&state.0.db.get().await?).await?;
 
-  return Ok(axum::Json(v));
+  return Ok(axum::Json(result));
 }
 
 pub fn route(db: deadpool_postgres::Pool) -> axum::Router
@@ -65,7 +65,7 @@ pub fn route(db: deadpool_postgres::Pool) -> axum::Router
   return axum::Router::new()
     .route("/update", axum::routing::post(update))
     .route("/erase", axum::routing::post(erase))
-    .route("/value", axum::routing::post(value))
+    .route("/list", axum::routing::get(list))
     .route_layer(axum::middleware::from_fn_with_state(state.clone(), auth))
     .with_state(state);
 }
