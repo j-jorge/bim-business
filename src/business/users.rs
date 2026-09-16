@@ -100,6 +100,22 @@ pub async fn override_nickname(
   return Ok(());
 }
 
+pub async fn restore_nickname(
+  t: &db::Transaction<'_>,
+  user_id: i64
+) -> result::Result<()>
+{
+  db::execute_p(
+    t,
+    r"delete from nickname_override
+      where user_id = $1",
+    &[&user_id]
+  )
+  .await?;
+
+  return Ok(());
+}
+
 pub async fn arena_stats(
   db: &db::Client,
   user_id: i64

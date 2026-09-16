@@ -44,6 +44,25 @@ async fn override_nickname(
 }
 
 #[derive(serde::Deserialize)]
+struct RestoreNicknameRequest
+{
+  user_id: i64
+}
+
+async fn restore_nickname(
+  state: axum::extract::State<ServiceState>,
+  axum::Json(request): axum::Json<RestoreNicknameRequest>
+) -> business::result::Result<()>
+{
+  let mut client: business::db::Client = state.0.db.get().await?;
+  let transaction: business::db::Transaction<'_> = client.transaction().await?;
+
+  business::users::restore_nickname(&transaction, request.user_id).await?;
+
+  return Ok(transaction.commit().await?);
+}
+
+#[derive(serde::Deserialize)]
 struct CoinsTransactionRequest
 {
   user_id: i64,
@@ -81,6 +100,7 @@ pub fn route(db: deadpool_postgres::Pool) -> axum::Router
 
   return axum::Router::new()
     .route("/override-nickname", axum::routing::post(override_nickname))
+    .route("/restore-nickname", axum::routing::post(restore_nickname))
     .route("/coins-transaction", axum::routing::post(coins_transaction))
     .route_layer(axum::middleware::from_fn_with_state(state.clone(), auth))
     .with_state(state);
