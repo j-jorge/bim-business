@@ -100,6 +100,29 @@ pub async fn override_nickname(
   return Ok(());
 }
 
+pub async fn overridden_nickname(
+  db: &db::Client,
+  user_id: i64
+) -> result::Result<Option<String>>
+{
+  let row_opt: Option<tokio_postgres::Row> = db::query_opt_p(
+    db,
+    r"select nickname
+      from nickname_override
+      where user_id = $1",
+    &[&user_id]
+  )
+  .await?;
+
+  if let Some(row) = row_opt
+  {
+    let nickname: String = row.get(0);
+    return Ok(Some(nickname));
+  }
+
+  return Ok(None);
+}
+
 pub async fn restore_nickname(
   t: &db::Transaction<'_>,
   user_id: i64

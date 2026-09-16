@@ -239,3 +239,19 @@ pub async fn to_user_id(
 
   return Ok(result);
 }
+
+pub async fn devices(
+  db: &db::Client,
+  user_id: i64
+) -> result::Result<Vec<String>>
+{
+  return db::collect_p(
+    db,
+    r"select device_id
+        from user_device
+        where user_id = $1",
+    &[&user_id],
+    |r| r.get(0)
+  )
+  .await;
+}

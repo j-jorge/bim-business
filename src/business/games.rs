@@ -398,3 +398,42 @@ pub async fn consume_reward(
 
   return Err(error::Error::BadParameter);
 }
+
+#[derive(serde::Serialize)]
+pub struct HistoryEntry
+{
+  game_id: i64,
+  start_date: chrono::DateTime<chrono::Utc>,
+  end_date: chrono::DateTime<chrono::Utc>,
+  short_game: bool,
+  outcome: String
+}
+
+pub async fn history(
+  db: &db::Client,
+  user_id: i64
+) -> result::Result<Vec<HistoryEntry>>
+{
+  return db::collect_p(
+    db,
+    r"select done_game.game_id,
+               start_date,
+               end_date,
+               short_game,
+               outcome
+        from done_game join done_game_player
+        on done_game.game_id = done_game_player.game_id
+        where user_id = $1
+        order by start_date desc
+        limit 100",
+    &[&user_id],
+    |r| HistoryEntry {
+      game_id: r.get(0),
+      start_date: r.get::<usize, std::time::SystemTime>(1).into(),
+      end_date: r.get::<usize, std::time::SystemTime>(2).into(),
+      short_game: r.get(3),
+      outcome: r.get(4)
+    }
+  )
+  .await;
+}

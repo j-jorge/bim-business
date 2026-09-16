@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::*;
 
-#[derive(Debug, tokio_postgres::types::ToSql)]
+#[derive(
+  Debug,
+  tokio_postgres::types::FromSql,
+  tokio_postgres::types::ToSql,
+  serde::Serialize,
+)]
 #[postgres(name = "transaction_origin", rename_all = "snake_case")]
 enum TransactionOrigin
 {
@@ -117,4 +122,42 @@ pub async fn coins_balance(db: &db::Client, user_id: i64)
   }
 
   return Ok(0);
+}
+
+#[derive(serde::Serialize)]
+pub struct HistoryEntry
+{
+  date: chrono::DateTime<chrono::Utc>,
+  origin: TransactionOrigin,
+  reason: String,
+  initial_balance: i64,
+  amount: i64
+}
+
+pub async fn history(
+  db: &db::Client,
+  user_id: i64
+) -> result::Result<Vec<HistoryEntry>>
+{
+  return db::collect_p(
+    db,
+    r"select date,
+               origin,
+               reason,
+               initial_balance,
+               amount
+        from currency_transaction
+        where user_id = $1
+        order by date desc
+        limit 100",
+    &[&user_id],
+    |r| HistoryEntry {
+      date: r.get::<usize, std::time::SystemTime>(0).into(),
+      origin: r.get(1),
+      reason: r.get(2),
+      initial_balance: r.get(3),
+      amount: r.get(4)
+    }
+  )
+  .await;
 }
