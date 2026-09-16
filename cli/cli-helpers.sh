@@ -57,12 +57,16 @@ _script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
 
 bim_curl()
 {
-    echo "Working with server $BIM_BUSINESS_SERVER_URL."
-
     local path="$1"
     shift
 
-    command=(curl --fail --silent "$BIM_BUSINESS_SERVER_URL"/"$path")
+    echo "Requesting '$BIM_BUSINESS_SERVER_URL/$path'."
+
+    command=(curl
+             --fail
+             --silent
+             --show-error
+             "$BIM_BUSINESS_SERVER_URL"/"$path")
 
     if [[ "${lead_required:-0}" -eq 1 ]]
     then
