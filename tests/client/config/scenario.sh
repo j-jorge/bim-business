@@ -106,9 +106,18 @@ expect_json_eq \
          {"id": "product-1", "coins": 100},
          {"id": "product-2", "coins": 200}
        ],
-       "game_servers": [ "1.1.1.1:1111" ]
+       "game_servers": [ "1.1.1.1:1111" ],
+       "max_nickname_length": 15
      }' \
          "$tmp_dir"/config-1.json
+
+expect_post admin/app-config/update \
+            --header "Authorization: $lead_token" \
+            --header "Content-Type: application/json" \
+            --data '[{
+                       "key": "users.max_nickname_length",
+                       "value": "5"
+                    }]'
 
 expect_post client/config \
             -H "Content-Type: application/json" \
@@ -132,7 +141,8 @@ expect_json_eq \
          {"id": "product-1", "coins": 100},
          {"id": "product-2", "coins": 200}
        ],
-       "game_servers": [ "2.2.2.2:2222" ]
+       "game_servers": [ "2.2.2.2:2222" ],
+       "max_nickname_length": 5
      }' \
          "$tmp_dir"/config-2.json
 
@@ -158,6 +168,7 @@ expect_json_eq \
          {"id": "product-1", "coins": 100},
          {"id": "product-2", "coins": 200}
        ],
-       "game_servers": []
+       "game_servers": [],
+       "max_nickname_length": 5
      }' \
          "$tmp_dir"/config-3.json

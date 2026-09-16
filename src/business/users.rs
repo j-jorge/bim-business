@@ -64,12 +64,30 @@ pub async fn profile(
   return Ok(result);
 }
 
+pub async fn max_nickname_length(
+  db: &impl deadpool_postgres::GenericClient
+) -> u64
+{
+  return app_config::get_u64(db, "users.max_nickname_length", 15).await;
+}
+
+pub enum SetNicknameStatus
+{
+  Done,
+  TooLong
+}
+
 pub async fn set_nickname(
   t: &db::Transaction<'_>,
   user_id: i64,
   nickname: &str
-) -> result::Result<()>
+) -> result::Result<SetNicknameStatus>
 {
+  if nickname.len() > usize::try_from(max_nickname_length(t).await)?
+  {
+    return Ok(SetNicknameStatus::TooLong);
+  }
+
   db::execute_p(
     t,
     r"update user_account
@@ -79,7 +97,7 @@ pub async fn set_nickname(
   )
   .await?;
 
-  return Ok(());
+  return Ok(SetNicknameStatus::Done);
 }
 
 pub async fn override_nickname(

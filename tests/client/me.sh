@@ -27,7 +27,8 @@ user_id="$(jq -r .user_id "$tmp_dir"/authenticate-1.json)"
 expect_post client/account/update-nickname \
             --header "Authorization: $session_token" \
             --header "Content-Type: application/json" \
-            --data '{"nickname": "the-nickname"}'
+            --data '{"nickname": "the-nickname"}' \
+            -o "$tmp_dir"/update-nickname-1.json
 
 # Give some coins to the user.
 expect_post admin/users/coins-transaction \

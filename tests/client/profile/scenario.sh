@@ -24,7 +24,8 @@ user_id_1="$(jq -r .user_id "$tmp_dir"/authenticate-1.json)"
 expect_post client/account/update-nickname \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
-            --data '{"nickname": "client-1"}'
+            --data '{"nickname": "client-1"}' \
+            -o "$tmp_dir"/update-nickname-1.json
 
 # Second client.
 expect_post client/authenticate \
@@ -37,7 +38,8 @@ user_id_2="$(jq -r .user_id "$tmp_dir"/authenticate-2.json)"
 expect_post client/account/update-nickname \
             --header "Authorization: $session_token_2" \
             --header "Content-Type: application/json" \
-            --data '{"nickname": "foobar"}'
+            --data '{"nickname": "foobar"}' \
+            -o "$tmp_dir"/update-nickname-2.json
 
 # Nicknames when first user asks.
 expect_post client/profile \

@@ -18,11 +18,12 @@ struct ConfigRequest
 #[derive(serde::Serialize)]
 struct ConfigResponse
 {
-  pub misc: serde_json::value::Value,
-  pub game_feature_slots: Vec<business::game_feature_slots::Slot>,
-  pub game_features: Vec<business::game_features::Feature>,
-  pub game_servers: Vec<String>,
-  pub shop: Vec<business::shop::Product>
+  misc: serde_json::value::Value,
+  game_feature_slots: Vec<business::game_feature_slots::Slot>,
+  game_features: Vec<business::game_features::Feature>,
+  game_servers: Vec<String>,
+  shop: Vec<business::shop::Product>,
+  max_nickname_length: u64
 }
 
 /// Config to be sent to the client at launch time.
@@ -50,7 +51,8 @@ async fn client_config(
     game_servers: game_servers
       .online_hosts_for_protocol(&db, request.game_server_protocol_version)
       .await?,
-    shop: business::shop::list(&db).await?
+    shop: business::shop::list(&db).await?,
+    max_nickname_length: business::users::max_nickname_length(&db).await
   }));
 }
 
