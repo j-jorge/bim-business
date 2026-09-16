@@ -55,7 +55,7 @@ done
 
 if [[ -z "${build_type:-}" ]]
 then
-    echo "--build_type is required." >&2
+    echo "--build-type is required." >&2
     exit 1
 fi
 
