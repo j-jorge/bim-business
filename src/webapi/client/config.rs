@@ -23,7 +23,8 @@ struct ConfigResponse
   game_features: Vec<business::game_features::Feature>,
   game_servers: Vec<String>,
   shop: Vec<business::shop::Product>,
-  max_nickname_length: u64
+  nickname_length_max: u64,
+  nickname_length_min: u64
 }
 
 /// Config to be sent to the client at launch time.
@@ -52,7 +53,8 @@ async fn client_config(
       .online_hosts_for_protocol(&db, request.game_server_protocol_version)
       .await?,
     shop: business::shop::list(&db).await?,
-    max_nickname_length: business::users::max_nickname_length(&db).await
+    nickname_length_max: business::users::max_nickname_length(&db).await,
+    nickname_length_min: business::users::min_nickname_length(&db).await
   }));
 }
 

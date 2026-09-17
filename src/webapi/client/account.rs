@@ -52,38 +52,22 @@ struct UpdateNicknameRequest
   pub nickname: String
 }
 
-#[derive(serde::Serialize)]
-struct UpdateNicknameResponse
-{
-  pub status: i8
-}
-
 #[axum::debug_handler]
 async fn update_nickname(
   user_id: axum::Extension<i64>,
   state: axum::extract::State<ServiceState>,
   axum::Json(request): axum::Json<UpdateNicknameRequest>
-) -> business::result::Result<axum::Json<UpdateNicknameResponse>>
+) -> business::result::Result<()>
 {
   let mut client: business::db::Client = state.0.db.get().await?;
   let transaction: business::db::Transaction<'_> = client.transaction().await?;
 
-  let status: i8 = match business::users::set_nickname(
-    &transaction,
-    user_id.0,
-    &request.nickname
-  )
-  .await?
-  {
-    business::users::SetNicknameStatus::Done => 0,
-    business::users::SetNicknameStatus::TooLong => 1
-  };
+  business::users::set_nickname(&transaction, user_id.0, &request.nickname)
+    .await?;
 
   transaction.commit().await?;
 
-  return Ok(axum::Json(UpdateNicknameResponse {
-    status
-  }));
+  return Ok(());
 }
 
 #[axum::debug_handler]

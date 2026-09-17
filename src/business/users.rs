@@ -68,24 +68,32 @@ pub async fn max_nickname_length(
   db: &impl deadpool_postgres::GenericClient
 ) -> u64
 {
-  return app_config::get_u64(db, "users.max_nickname_length", 15).await;
+  return app_config::get_u64(db, "users.nickname_length.max", 15).await;
 }
 
-pub enum SetNicknameStatus
+pub async fn min_nickname_length(
+  db: &impl deadpool_postgres::GenericClient
+) -> u64
 {
-  Done,
-  TooLong
+  return app_config::get_u64(db, "users.nickname_length.min", 2).await;
 }
 
 pub async fn set_nickname(
   t: &db::Transaction<'_>,
   user_id: i64,
-  nickname: &str
-) -> result::Result<SetNicknameStatus>
+  wanted_nickname: &str
+) -> result::Result<()>
 {
+  let nickname: &str = wanted_nickname.trim();
+
+  if nickname.len() < usize::try_from(min_nickname_length(t).await)?
+  {
+    return Err(error::Error::BadParameter);
+  }
+
   if nickname.len() > usize::try_from(max_nickname_length(t).await)?
   {
-    return Ok(SetNicknameStatus::TooLong);
+    return Err(error::Error::BadParameter);
   }
 
   db::execute_p(
@@ -97,7 +105,7 @@ pub async fn set_nickname(
   )
   .await?;
 
-  return Ok(SetNicknameStatus::Done);
+  return Ok(());
 }
 
 pub async fn override_nickname(

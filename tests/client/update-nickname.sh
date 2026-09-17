@@ -17,7 +17,11 @@ expect_post admin/app-config/update \
             --header "Authorization: $admin_token" \
             --header "Content-Type: application/json" \
             --data '[{
-                       "key": "users.max_nickname_length",
+                       "key": "users.nickname_length.min",
+                       "value": "3"
+                     },
+                     {
+                       "key": "users.nickname_length.max",
                        "value": "5"
                     }]'
 
@@ -38,13 +42,16 @@ expect_post client/profile \
 nickname_1="$(jq -r .[0].nickname "$tmp_dir"/profile-1.json)"
 
 # Try to set a too-long nickname.
-expect_post client/account/update-nickname \
-            --header "Authorization: $session_token_1" \
-            --header "Content-Type: application/json" \
-            --data '{"nickname": "foobar"}' \
-            -o "$tmp_dir"/update-nickname-1.json
+expect_post_error 400 client/account/update-nickname \
+                  --header "Authorization: $session_token_1" \
+                  --header "Content-Type: application/json" \
+                  --data '{"nickname": "foobar"}'
 
-expect_json_eq '{"status": 1}' "$tmp_dir"/update-nickname-1.json
+# Try to set a too-short nickname.
+expect_post_error 400 client/account/update-nickname \
+                  --header "Authorization: $session_token_1" \
+                  --header "Content-Type: application/json" \
+                  --data '{"nickname": "fr"}'
 
 expect_post client/profile \
             --header "Authorization: $session_token_1" \
@@ -62,10 +69,7 @@ expect_json_eq \
 expect_post client/account/update-nickname \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
-            --data '{"nickname": "foo"}' \
-            -o "$tmp_dir"/update-nickname-2.json
-
-expect_json_eq '{"status": 0}' "$tmp_dir"/update-nickname-2.json
+            --data '{"nickname": " foo  "}'
 
 expect_post client/profile \
             --header "Authorization: $session_token_1" \
