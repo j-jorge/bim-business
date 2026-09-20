@@ -9,7 +9,6 @@ argh = "0.1"
 axum = { version = "0.8", features = ["macros"] }
 axum-server = "0.8"
 base64 = "0.22"
-chrono = { version = "0.4", features = ["serde"] }
 deadpool-postgres = "0.14"
 google-cloud-auth = "1.16"
 http = "1.5"
@@ -20,8 +19,9 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 strum = { version = "0.28.0", features = ["derive"] }
 thiserror = "2.0"
+time = { version = "0.3", features = ["serde"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync"] }
-tokio-postgres = "0.7"
+tokio-postgres = { version = "0.7", features = ["with-time-0_3"] }
 tower-http = { version = "0.6", features = ["trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

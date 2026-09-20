@@ -3,7 +3,7 @@ use super::*;
 
 struct Internals
 {
-  m_date_of_last_clean_up: std::time::SystemTime
+  m_date_of_last_clean_up: time::OffsetDateTime
 }
 
 pub struct Service
@@ -17,7 +17,7 @@ impl Service
   {
     return Service {
       m_internals: tokio::sync::RwLock::new(Internals {
-        m_date_of_last_clean_up: std::time::SystemTime::now()
+        m_date_of_last_clean_up: time::OffsetDateTime::now_utc()
       })
     };
   }
@@ -26,7 +26,7 @@ impl Service
   {
     if let Ok(mut client) = db_pool.get().await
     {
-      let now = std::time::SystemTime::now();
+      let now = time::OffsetDateTime::now_utc();
 
       {
         let internals = self.m_internals.read().await;
@@ -110,7 +110,7 @@ pub async fn started(
   db::execute_p(
     transaction,
     r"insert into active_game values ($1, $2)",
-    &[&game_id, &std::time::SystemTime::now()]
+    &[&game_id, &time::OffsetDateTime::now_utc()]
   )
   .await?;
 
@@ -225,7 +225,7 @@ pub async fn over(
   }
 
   // The game is over, we can remove it from from the active games.
-  let start_date: std::time::SystemTime = db::query_one_p(
+  let start_date: time::OffsetDateTime = db::query_one_p(
     transaction,
     r"delete from active_game where game_id = $1 returning start_date",
     &[&game_id]
@@ -233,7 +233,7 @@ pub async fn over(
   .await?
   .get(0);
 
-  let now = std::time::SystemTime::now();
+  let now = time::OffsetDateTime::now_utc();
 
   let short_game: bool = game_duration.as_secs()
     < app_config::get_u64(
@@ -403,8 +403,10 @@ pub async fn consume_reward(
 pub struct HistoryEntry
 {
   game_id: i64,
-  start_date: chrono::DateTime<chrono::Utc>,
-  end_date: chrono::DateTime<chrono::Utc>,
+  #[serde(with = "time::serde::rfc3339")]
+  start_date: time::OffsetDateTime,
+  #[serde(with = "time::serde::rfc3339")]
+  end_date: time::OffsetDateTime,
   short_game: bool,
   outcome: String
 }
@@ -429,8 +431,8 @@ pub async fn history(
     &[&user_id],
     |r| HistoryEntry {
       game_id: r.get(0),
-      start_date: r.get::<usize, std::time::SystemTime>(1).into(),
-      end_date: r.get::<usize, std::time::SystemTime>(2).into(),
+      start_date: r.get::<usize, time::OffsetDateTime>(1),
+      end_date: r.get::<usize, time::OffsetDateTime>(2),
       short_game: r.get(3),
       outcome: r.get(4)
     }

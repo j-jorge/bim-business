@@ -30,8 +30,10 @@ pub struct GameServerInfo
   pub name: String,
   pub token: String,
   pub description: String,
-  pub registration_date: chrono::DateTime<chrono::Utc>,
-  pub last_seen: chrono::DateTime<chrono::Utc>,
+  #[serde(with = "time::serde::rfc3339")]
+  pub registration_date: time::OffsetDateTime,
+  #[serde(with = "time::serde::rfc3339")]
+  pub last_seen: time::OffsetDateTime,
   #[serde(skip_serializing_if = "Option::is_none")]
   pub info: Option<ServerDeclaredInfo>
 }
@@ -116,7 +118,7 @@ impl GameServers
     description: &str
   ) -> result::Result<RegistrationResult>
   {
-    let now: std::time::SystemTime = std::time::SystemTime::now();
+    let now: time::OffsetDateTime = time::OffsetDateTime::now_utc();
     let token: String = token::generate_token(32)?;
     let id: i64 = db::query_one_p(
       t,
@@ -156,7 +158,7 @@ impl GameServers
       return Err(error::Error::BadParameter);
     }
 
-    let now: std::time::SystemTime = std::time::SystemTime::now();
+    let now: time::OffsetDateTime = time::OffsetDateTime::now_utc();
 
     db::execute_p(
       t,
@@ -223,16 +225,16 @@ impl GameServers
         });
       }
 
-      let registration_date: std::time::SystemTime = r.get(4);
-      let last_seen: std::time::SystemTime = r.get(5);
+      let registration_date: time::OffsetDateTime = r.get(4);
+      let last_seen: time::OffsetDateTime = r.get(5);
 
       result.push(GameServerInfo {
         id,
         name: r.get(1),
         token: r.get(2),
         description: r.get(3),
-        registration_date: registration_date.into(),
-        last_seen: last_seen.into(),
+        registration_date,
+        last_seen,
         info
       });
     }

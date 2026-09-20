@@ -10,7 +10,7 @@ pub struct AuthenticationResponse
 
 struct Internals
 {
-  m_date_of_last_clean_up: std::time::SystemTime
+  m_date_of_last_clean_up: time::OffsetDateTime
 }
 
 async fn session_validity_duration(
@@ -33,7 +33,7 @@ impl Service
   {
     return Service {
       m_internals: tokio::sync::RwLock::new(Internals {
-        m_date_of_last_clean_up: std::time::SystemTime::now()
+        m_date_of_last_clean_up: time::OffsetDateTime::now_utc()
       })
     };
   }
@@ -44,7 +44,7 @@ impl Service
     device_id: String
   ) -> result::Result<AuthenticationResponse>
   {
-    let now = std::time::SystemTime::now();
+    let now = time::OffsetDateTime::now_utc();
     self.maybe_run_session_removal_job(db, &now).await?;
 
     let rows: Vec<tokio_postgres::Row> = db::query_p(
@@ -159,7 +159,7 @@ impl Service
   async fn maybe_run_session_removal_job(
     &self,
     db: &db::Transaction<'_>,
-    now: &std::time::SystemTime
+    now: &time::OffsetDateTime
   ) -> result::Result<()>
   {
     {
@@ -190,7 +190,7 @@ pub async fn refresh(
   token: &str
 ) -> result::Result<Option<i64>>
 {
-  let now = std::time::SystemTime::now();
+  let now = time::OffsetDateTime::now_utc();
   let expires_at = now + session_validity_duration(db).await;
 
   let row: Option<tokio_postgres::Row> = db::query_opt_p(
@@ -217,7 +217,7 @@ pub async fn to_user_id(
   session_tokens: &Vec<String>
 ) -> result::Result<Vec<Option<i64>>>
 {
-  let now = std::time::SystemTime::now();
+  let now = time::OffsetDateTime::now_utc();
   let mut result = Vec::<Option<i64>>::with_capacity(session_tokens.len());
 
   for t in session_tokens

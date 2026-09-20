@@ -94,7 +94,7 @@ async fn internal_coins_transaction(
     r"insert into currency_transaction values ($1, $2, $3, $4, $5, $6)",
     &[
       &user_id,
-      &std::time::SystemTime::now(),
+      &time::OffsetDateTime::now_utc(),
       &origin,
       &reason,
       &initial_balance,
@@ -127,7 +127,8 @@ pub async fn coins_balance(db: &db::Client, user_id: i64)
 #[derive(serde::Serialize)]
 pub struct HistoryEntry
 {
-  date: chrono::DateTime<chrono::Utc>,
+  #[serde(with = "time::serde::rfc3339")]
+  date: time::OffsetDateTime,
   origin: TransactionOrigin,
   reason: String,
   initial_balance: i64,
@@ -152,7 +153,7 @@ pub async fn history(
         limit 100",
     &[&user_id],
     |r| HistoryEntry {
-      date: r.get::<usize, std::time::SystemTime>(0).into(),
+      date: r.get::<usize, time::OffsetDateTime>(0),
       origin: r.get(1),
       reason: r.get(2),
       initial_balance: r.get(3),

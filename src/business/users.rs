@@ -91,7 +91,7 @@ pub async fn nickname_change_cooldown(
 pub async fn last_nickname_change(
   db: &db::Client,
   user_id: i64
-) -> result::Result<std::time::SystemTime>
+) -> result::Result<time::OffsetDateTime>
 {
   return Ok(
     db::query_one_p(
@@ -124,7 +124,7 @@ pub async fn set_nickname(
     return Err(error::Error::BadParameter);
   }
 
-  let now = std::time::SystemTime::now();
+  let now = time::OffsetDateTime::now_utc();
 
   let date_of_last_change_row: tokio_postgres::Row = db::query_one_p(
     t,
@@ -135,7 +135,7 @@ pub async fn set_nickname(
     &[&user_id]
   )
   .await?;
-  let date_of_last_change: std::time::SystemTime =
+  let date_of_last_change: time::OffsetDateTime =
     date_of_last_change_row.get(0);
 
   if date_of_last_change + nickname_change_cooldown(t).await > now

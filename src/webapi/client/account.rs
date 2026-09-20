@@ -313,7 +313,8 @@ struct MeResponse
 {
   user_id: i64,
   nickname: String,
-  nickname_change_allowed_date: chrono::DateTime<chrono::Utc>,
+  #[serde(with = "time::serde::rfc3339")]
+  nickname_change_allowed_date: time::OffsetDateTime,
   coins: i64,
   feature_slots: Vec<business::inventory::GameFeatureSlotState>,
   available_features: Vec<String>,
@@ -337,10 +338,9 @@ async fn me(
 
   let profile: business::users::ProfileResponse = profiles.remove(0);
 
-  let nickname_change_allowed_date: chrono::DateTime<chrono::Utc> =
-    (business::users::last_nickname_change(&db, user_id.0).await?
-      + business::users::nickname_change_cooldown(&db).await)
-      .into();
+  let nickname_change_allowed_date: time::OffsetDateTime =
+    business::users::last_nickname_change(&db, user_id.0).await?
+      + business::users::nickname_change_cooldown(&db).await;
 
   let mut slots: Vec<business::inventory::GameFeatureSlotState> =
     business::inventory::user_selected_game_features(&db, user_id.0).await?;
