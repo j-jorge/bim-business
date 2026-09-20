@@ -158,6 +158,7 @@ expect_json_eq \
     '{
        "user_id": '"$user_id"',
        "nickname": "the-nickname",
+       "nickname_change_allowed_date": "timestamp",
        "coins": 1234,
        "feature_slots":
        [

@@ -16,14 +16,20 @@ admin_token="$(jq -r . "$tmp_dir"/lead.json)"
 expect_post admin/app-config/update \
             --header "Authorization: $admin_token" \
             --header "Content-Type: application/json" \
-            --data '[{
-                       "key": "users.nickname_length.min",
-                       "value": "3"
-                     },
-                     {
-                       "key": "users.nickname_length.max",
-                       "value": "5"
-                    }]'
+            --data '[
+                      {
+                        "key": "users.nickname_length.min",
+                        "value": "3"
+                      },
+                      {
+                        "key": "users.nickname_length.max",
+                        "value": "5"
+                      },
+                      {
+                        "key": "users.nickname_change_cooldown.minutes",
+                        "value": "1000"
+                      }
+                    ]'
 
 # Authenticate the user.
 expect_post client/authenticate \
@@ -82,3 +88,49 @@ expect_json_eq \
        {"nickname": "foo", "user_id": '"$user_id_1"'}
      ]' \
          "$tmp_dir"/profile-3.json
+
+# Second update is rejected because of the cooldown.
+expect_post_error 422 client/account/update-nickname \
+                  --header "Authorization: $session_token_1" \
+                  --header "Content-Type: application/json" \
+                  --data '{"nickname": "bar"}'
+
+expect_post client/profile \
+            --header "Authorization: $session_token_1" \
+            --header "Content-Type: application/json" \
+            --data "[$user_id_1]" \
+            -o "$tmp_dir"/profile-4.json
+
+expect_json_eq \
+    '[
+       {"nickname": "foo", "user_id": '"$user_id_1"'}
+     ]' \
+         "$tmp_dir"/profile-4.json
+
+# Remove the cooldown to allow a nickname change.
+expect_post admin/app-config/update \
+            --header "Authorization: $admin_token" \
+            --header "Content-Type: application/json" \
+            --data '[
+                      {
+                        "key": "users.nickname_change_cooldown.minutes",
+                        "value": "0"
+                      }
+                    ]'
+
+expect_post client/account/update-nickname \
+            --header "Authorization: $session_token_1" \
+            --header "Content-Type: application/json" \
+            --data '{"nickname": "bar"}'
+
+expect_post client/profile \
+            --header "Authorization: $session_token_1" \
+            --header "Content-Type: application/json" \
+            --data "[$user_id_1]" \
+            -o "$tmp_dir"/profile-5.json
+
+expect_json_eq \
+    '[
+       {"nickname": "bar", "user_id": '"$user_id_1"'}
+     ]' \
+         "$tmp_dir"/profile-5.json

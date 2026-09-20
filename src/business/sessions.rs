@@ -125,7 +125,9 @@ impl Service
 
     let user_id: i64 = db::query_one(
       t,
-      r"insert into user_account values (default, '') returning user_id"
+      r"insert into user_account
+        values (default, '', 'epoch')
+        returning user_id"
     )
     .await?
     .get(0);

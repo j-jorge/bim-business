@@ -78,6 +78,34 @@ pub async fn min_nickname_length(
   return app_config::get_u64(db, "users.nickname_length.min", 2).await;
 }
 
+pub async fn nickname_change_cooldown(
+  db: &impl deadpool_postgres::GenericClient
+) -> std::time::Duration
+{
+  return std::time::Duration::from_mins(
+    app_config::get_u64(db, "users.nickname_change_cooldown.minutes", 24 * 60)
+      .await
+  );
+}
+
+pub async fn last_nickname_change(
+  db: &db::Client,
+  user_id: i64
+) -> result::Result<std::time::SystemTime>
+{
+  return Ok(
+    db::query_one_p(
+      db,
+      r"select last_nickname_change
+        from user_account
+        where user_id = $1",
+      &[&user_id]
+    )
+    .await?
+    .get(0)
+  );
+}
+
 pub async fn set_nickname(
   t: &db::Transaction<'_>,
   user_id: i64,
@@ -96,12 +124,31 @@ pub async fn set_nickname(
     return Err(error::Error::BadParameter);
   }
 
+  let now = std::time::SystemTime::now();
+
+  let date_of_last_change_row: tokio_postgres::Row = db::query_one_p(
+    t,
+    r"select last_nickname_change
+      from user_account
+      where user_id = $1
+      for update",
+    &[&user_id]
+  )
+  .await?;
+  let date_of_last_change: std::time::SystemTime =
+    date_of_last_change_row.get(0);
+
+  if date_of_last_change + nickname_change_cooldown(t).await > now
+  {
+    return Err(error::Error::Unprocessable);
+  }
+
   db::execute_p(
     t,
     r"update user_account
-      set nickname = $1
-      where user_id = $2",
-    &[&nickname, &user_id]
+      set (nickname, last_nickname_change) = ($1, $2)
+      where user_id = $3",
+    &[&nickname, &now, &user_id]
   )
   .await?;
 
