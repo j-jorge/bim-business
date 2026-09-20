@@ -251,6 +251,15 @@ expect_eval_eq()
     fi
 }
 
+_substitute_timestamps()
+{
+    sed 's/_/__/g;
+         s/"1970-01-01T00:00:00Z"/epoch_placeholder/g;
+         s/"[0-9]\{4\}\(-[0-9]\{2\}\)\{2\}T[0-9]\{2\}\(:[0-9]\{2\}\)\{2\}\(\.[0-9]\+\)\?Z"/"timestamp"/g;
+         s/epoch_placeholder/"1970-01-01T00:00:00Z"/g;
+         s/__/_/g'
+}
+
 # Usage: expect_json_eq JSON FILE, where JSON is a JSON document as a
 # string, and FILE is a JSON file. The function passes if the content
 # of the JSON file is identical to the provided JSON string.
@@ -266,10 +275,12 @@ expect_json_eq()
     # Uniformize the JSON representation of both arguments.
 
     local expected
-    expected="$(echo "$1" | jq --sort-keys --compact-output .)"
+    expected="$(echo "$1" \
+                     | jq --sort-keys --compact-output .)"
 
     local actual
-    actual="$(jq --sort-keys --compact-output . "$2")"
+    actual="$(jq --sort-keys --compact-output . "$2" \
+                 | _substitute_timestamps)"
 
     if [[ "$expected" = "$actual" ]]
     then

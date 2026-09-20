@@ -55,8 +55,6 @@ expect_get_error 401 admin/game-servers/list \
            -H "Authorization: foobar"
 expect_get_error 401 admin/game-servers/list
 
-sed 's/\(registration_date":"\)[^"]\+/\1placeholder/g' \
-    -i "$tmp_dir"/list-1.json
 expect_json_eq \
     '[
        {
@@ -65,7 +63,7 @@ expect_json_eq \
          "description": "Some server.",
          "token": "'"$gs_token_1"'",
          "last_seen": "1970-01-01T00:00:00Z",
-         "registration_date": "placeholder"
+         "registration_date": "timestamp"
        },
        {
          "id": '"$gs_id_2"',
@@ -73,7 +71,7 @@ expect_json_eq \
          "description": "Other server.",
          "token": "'"$gs_token_2"'",
          "last_seen": "1970-01-01T00:00:00Z",
-         "registration_date": "placeholder"
+         "registration_date": "timestamp"
        }
      ]' \
          "$tmp_dir"/list-1.json
@@ -89,9 +87,7 @@ expect_post gs/hello \
                "protocol_version": 24
              }' \
              -o "$tmp_dir"/hello-1.json
-sed 's/\(callback_delay_seconds":\)[0-9]\+/\1"placeholder"/' \
-    -i "$tmp_dir"/hello-1.json
-expect_json_eq '{"callback_delay_seconds":"placeholder"}' \
+expect_json_eq '{"callback_delay_seconds":0}' \
                "$tmp_dir"/hello-1.json
 
 # Same but with a domain instead of an IP for the host.
@@ -105,9 +101,7 @@ expect_post gs/hello \
                "protocol_version": 24
              }' \
              -o "$tmp_dir"/hello-2.json
-sed 's/\(callback_delay_seconds":\)[0-9]\+/\1"placeholder"/' \
-    -i "$tmp_dir"/hello-2.json
-expect_json_eq '{"callback_delay_seconds":"placeholder"}' \
+expect_json_eq '{"callback_delay_seconds":0}' \
                "$tmp_dir"/hello-2.json
 
 # This one sends incomplete information.
@@ -144,8 +138,6 @@ expect_post_error 400 gs/hello \
 expect_get admin/game-servers/list \
            -H "Authorization: $admin_token" \
            -o "$tmp_dir"/list-2.json
-sed 's/\(registration_date":"\|last_seen":"\)[^"]\+/\1placeholder/g' \
-    -i "$tmp_dir"/list-2.json
 expect_json_eq \
     '[
        {
@@ -153,16 +145,16 @@ expect_json_eq \
          "name": "valid-server",
          "description": "Some server.",
          "token": "'"$gs_token_1"'",
-         "last_seen": "placeholder",
-         "registration_date": "placeholder"
+         "last_seen": "1970-01-01T00:00:00Z",
+         "registration_date": "timestamp"
        },
        {
          "id": '"$gs_id_2"',
          "name": "other-server",
          "description": "Other server.",
          "token": "'"$gs_token_2"'",
-         "last_seen": "placeholder",
-         "registration_date": "placeholder",
+         "last_seen": "timestamp",
+         "registration_date": "timestamp",
          "info":
          {
            "host": "localhost:1234",
@@ -187,8 +179,6 @@ expect_post client/config \
 expect_get admin/game-servers/list \
            -H "Authorization: $admin_token" \
            -o "$tmp_dir"/list-3.json
-sed 's/\(registration_date":"\|last_seen":"\)[^"]\+/\1placeholder/g' \
-    -i "$tmp_dir"/list-3.json
 expect_json_eq \
     '[
        {
@@ -196,16 +186,16 @@ expect_json_eq \
          "name": "valid-server",
          "description": "Some server.",
          "token": "'"$gs_token_1"'",
-         "last_seen": "placeholder",
-         "registration_date": "placeholder"
+         "last_seen": "1970-01-01T00:00:00Z",
+         "registration_date": "timestamp"
        },
        {
          "id": '"$gs_id_2"',
          "name": "other-server",
          "description": "Other server.",
          "token": "'"$gs_token_2"'",
-         "last_seen": "placeholder",
-         "registration_date": "placeholder"
+         "last_seen": "timestamp",
+         "registration_date": "timestamp"
        }
      ]' \
          "$tmp_dir"/list-3.json
