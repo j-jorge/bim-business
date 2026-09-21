@@ -49,7 +49,14 @@ async fn authenticate(
 #[derive(serde::Deserialize)]
 struct UpdateNicknameRequest
 {
-  pub nickname: String
+  nickname: String
+}
+
+#[derive(serde::Serialize)]
+struct UpdateNicknameResponse
+{
+  #[serde(with = "time::serde::rfc3339")]
+  nickname_change_allowed_date: time::OffsetDateTime
 }
 
 #[axum::debug_handler]
@@ -57,17 +64,20 @@ async fn update_nickname(
   user_id: axum::Extension<i64>,
   state: axum::extract::State<ServiceState>,
   axum::Json(request): axum::Json<UpdateNicknameRequest>
-) -> business::result::Result<()>
+) -> business::result::Result<axum::Json<UpdateNicknameResponse>>
 {
   let mut client: business::db::Client = state.0.db.get().await?;
   let transaction: business::db::Transaction<'_> = client.transaction().await?;
 
-  business::users::set_nickname(&transaction, user_id.0, &request.nickname)
-    .await?;
+  let nickname_change_allowed_date: time::OffsetDateTime =
+    business::users::set_nickname(&transaction, user_id.0, &request.nickname)
+      .await?;
 
   transaction.commit().await?;
 
-  return Ok(());
+  return Ok(axum::Json(UpdateNicknameResponse {
+    nickname_change_allowed_date
+  }));
 }
 
 #[axum::debug_handler]

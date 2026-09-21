@@ -75,7 +75,8 @@ expect_json_eq \
 expect_post client/account/update-nickname \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
-            --data '{"nickname": " foo  "}'
+            --data '{"nickname": " foo  "}' \
+            -o "$tmp_dir"/update-nickname-1.json
 
 expect_post client/profile \
             --header "Authorization: $session_token_1" \
@@ -121,7 +122,8 @@ expect_post admin/app-config/update \
 expect_post client/account/update-nickname \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
-            --data '{"nickname": "bar"}'
+            --data '{"nickname": "bar"}' \
+            -o "$tmp_dir"/update-nickname-2.json
 
 expect_post client/profile \
             --header "Authorization: $session_token_1" \
@@ -134,3 +136,18 @@ expect_json_eq \
        {"nickname": "bar", "user_id": '"$user_id_1"'}
      ]' \
          "$tmp_dir"/profile-5.json
+
+expect_post client/me \
+            --header "Authorization: $session_token_1" \
+            --header "Content-Type: application/json" \
+            -o "$tmp_dir"/me.json
+
+# The response do not have the same precision in the fractional part.
+date_in_response="$(jq -c --raw-output .nickname_change_allowed_date \
+                       "$tmp_dir"/update-nickname-2.json \
+                       | sed 's/\.[0-9]\+Z/Z/')"
+date_in_me="$(jq -c --raw-output .nickname_change_allowed_date \
+                       "$tmp_dir"/me.json \
+                       | sed 's/\.[0-9]\+Z/Z/')"
+
+expect_eq "$date_in_response" "$date_in_me"

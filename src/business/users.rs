@@ -110,7 +110,7 @@ pub async fn set_nickname(
   t: &db::Transaction<'_>,
   user_id: i64,
   wanted_nickname: &str
-) -> result::Result<()>
+) -> result::Result<time::OffsetDateTime>
 {
   let nickname: &str = wanted_nickname.trim();
 
@@ -137,8 +137,9 @@ pub async fn set_nickname(
   .await?;
   let date_of_last_change: time::OffsetDateTime =
     date_of_last_change_row.get(0);
+  let cooldown: std::time::Duration = nickname_change_cooldown(t).await;
 
-  if date_of_last_change + nickname_change_cooldown(t).await > now
+  if date_of_last_change + cooldown > now
   {
     return Err(error::Error::Unprocessable);
   }
@@ -152,7 +153,7 @@ pub async fn set_nickname(
   )
   .await?;
 
-  return Ok(());
+  return Ok(now + cooldown);
 }
 
 pub async fn override_nickname(
