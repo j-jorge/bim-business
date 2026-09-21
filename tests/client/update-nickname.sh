@@ -151,3 +151,34 @@ date_in_me="$(jq -c --raw-output .nickname_change_allowed_date \
                        | sed 's/\.[0-9]\+Z/Z/')"
 
 expect_eq "$date_in_response" "$date_in_me"
+
+# Japanese.
+expect_post client/account/update-nickname \
+            --header "Authorization: $session_token_1" \
+            --header "Content-Type: application/json" \
+            --data '{"nickname": "\u65e5\u672c\u8a9e"}' \
+            -o "$tmp_dir"/update-nickname-3.json
+
+# Emojis. Thumb up, three times.
+expect_post client/account/update-nickname \
+            --header "Authorization: $session_token_1" \
+            --header "Content-Type: application/json" \
+            --data '{"nickname": "\ud83d\udc4d\ud83d\udc4d\ud83d\udc4d"}' \
+            -o "$tmp_dir"/update-nickname-4.json
+
+expect_post admin/app-config/update \
+            --header "Authorization: $admin_token" \
+            --header "Content-Type: application/json" \
+            --data '[
+                      {
+                        "key": "users.nickname_length.max",
+                        "value": "15"
+                      }
+                    ]'
+
+# Japanese and emojis.
+expect_post client/account/update-nickname \
+            --header "Authorization: $session_token_1" \
+            --header "Content-Type: application/json" \
+            --data '{"nickname": "\u65e5\u672c\u8a9e -- \ud83d\udc4d"}' \
+            -o "$tmp_dir"/update-nickname-5.json
