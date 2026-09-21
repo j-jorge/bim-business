@@ -66,6 +66,7 @@ async fn update_nickname(
   axum::Json(request): axum::Json<UpdateNicknameRequest>
 ) -> business::result::Result<axum::Json<UpdateNicknameResponse>>
 {
+  tracing::error!("update_nickname.");
   let mut client: business::db::Client = state.0.db.get().await?;
   let transaction: business::db::Transaction<'_> = client.transaction().await?;
 
@@ -73,6 +74,7 @@ async fn update_nickname(
     business::users::set_nickname(&transaction, user_id.0, &request.nickname)
       .await?;
 
+  tracing::error!("update_nickname 1.");
   transaction.commit().await?;
 
   return Ok(axum::Json(UpdateNicknameResponse {

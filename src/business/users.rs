@@ -113,14 +113,20 @@ pub async fn set_nickname(
 ) -> result::Result<time::OffsetDateTime>
 {
   let nickname: &str = wanted_nickname.trim();
+  let len: usize = nickname.chars().count();
 
-  if nickname.len() < usize::try_from(min_nickname_length(t).await)?
+  if len < usize::try_from(min_nickname_length(t).await)?
   {
+    tracing::error!("Nickname is too short: '{}'.", nickname);
     return Err(error::Error::BadParameter);
   }
 
-  if nickname.len() > usize::try_from(max_nickname_length(t).await)?
+  if len > usize::try_from(max_nickname_length(t).await)?
   {
+    tracing::error!(
+      "Nickname is too long: '{}'.",
+      nickname.chars().into_iter().take(20).collect::<String>()
+    );
     return Err(error::Error::BadParameter);
   }
 
