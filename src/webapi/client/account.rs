@@ -82,21 +82,6 @@ async fn update_nickname(
   }));
 }
 
-#[axum::debug_handler]
-async fn profile(
-  user_id: axum::Extension<i64>,
-  state: axum::extract::State<ServiceState>,
-  axum::Json(request): axum::Json<Vec<i64>>
-) -> business::result::Result<axum::Json<Vec<business::users::ProfileResponse>>>
-{
-  let mut profiles: Vec<business::users::ProfileResponse> =
-    business::users::profile(&state.0.db.get().await?, user_id.0, &request)
-      .await?;
-  profiles.sort_by_key(|p| p.user_id);
-
-  return Ok(axum::Json(profiles));
-}
-
 #[derive(serde::Deserialize)]
 struct TransferLegacyRequest
 {
@@ -391,7 +376,6 @@ pub fn route(
       axum::routing::post(update_nickname)
     )
     .route("/me", axum::routing::post(me))
-    .route("/profile", axum::routing::post(profile))
     .route(
       "/transfer-legacy-inventory",
       axum::routing::post(transfer_legacy)

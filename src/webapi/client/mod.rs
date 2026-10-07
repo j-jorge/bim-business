@@ -5,3 +5,4 @@ pub mod account;
 pub mod billing;
 pub mod config;
 pub mod game;
+pub mod users;

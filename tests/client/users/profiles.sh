@@ -42,31 +42,37 @@ expect_post client/account/update-nickname \
             -o "$tmp_dir"/update-nickname-2.json
 
 # Nicknames when first user asks.
-expect_post client/profile \
+expect_post client/users/profiles \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
-            --data "[$user_id_2, $user_id_1]" \
+            --data '{"user_ids": ['"$user_id_2"', '"$user_id_1"']}' \
             -o "$tmp_dir"/profile-1.json
 
 expect_json_eq \
-    '[
-       {"nickname": "client-1", "user_id": '"$user_id_1"'},
-       {"nickname": "foobar", "user_id": '"$user_id_2"'}
-     ]' \
+    '{
+       "profiles":
+       [
+         {"nickname": "client-1", "user_id": '"$user_id_1"'},
+         {"nickname": "foobar", "user_id": '"$user_id_2"'}
+       ]
+     }' \
          "$tmp_dir"/profile-1.json
 
 # Nicknames when second user asks.
-expect_post client/profile \
+expect_post client/users/profiles \
             --header "Authorization: $session_token_2" \
             --header "Content-Type: application/json" \
-            --data "[$user_id_2, $user_id_1]" \
+            --data '{"user_ids": ['"$user_id_2"', '"$user_id_1"']}' \
             -o "$tmp_dir"/profile-2.json
 
 expect_json_eq \
-    '[
-       {"nickname": "client-1", "user_id": '"$user_id_1"'},
-       {"nickname": "foobar", "user_id": '"$user_id_2"'}
-     ]' \
+    '{
+       "profiles":
+       [
+         {"nickname": "client-1", "user_id": '"$user_id_1"'},
+         {"nickname": "foobar", "user_id": '"$user_id_2"'}
+       ]
+     }' \
          "$tmp_dir"/profile-2.json
 
 # Force 2nd user's nickname.
@@ -76,31 +82,37 @@ expect_post admin/users/override-nickname \
             --data '{"user_id": '"$user_id_2"', "nickname": "client-2"}'
 
 # Nicknames when first user asks: sees overridden nickname of second user.
-expect_post client/profile \
+expect_post client/users/profiles \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
-            --data "[$user_id_2, $user_id_1]" \
+            --data '{"user_ids": ['"$user_id_2"', '"$user_id_1"']}' \
             -o "$tmp_dir"/profile-3.json
 
 expect_json_eq \
-    '[
-       {"nickname": "client-1", "user_id": '"$user_id_1"'},
-       {"nickname": "client-2", "user_id": '"$user_id_2"'}
-     ]' \
+    '{
+       "profiles":
+       [
+         {"nickname": "client-1", "user_id": '"$user_id_1"'},
+         {"nickname": "client-2", "user_id": '"$user_id_2"'}
+       ]
+     }' \
          "$tmp_dir"/profile-3.json
 
 # Nicknames when second user asks: sees its own nickname.
-expect_post client/profile \
+expect_post client/users/profiles \
             --header "Authorization: $session_token_2" \
             --header "Content-Type: application/json" \
-            --data "[$user_id_2, $user_id_1]" \
+            --data '{"user_ids": ['"$user_id_2"', '"$user_id_1"']}' \
             -o "$tmp_dir"/profile-4.json
 
 expect_json_eq \
-    '[
-       {"nickname": "client-1", "user_id": '"$user_id_1"'},
-       {"nickname": "foobar", "user_id": '"$user_id_2"'}
-     ]' \
+    '{
+       "profiles":
+       [
+         {"nickname": "client-1", "user_id": '"$user_id_1"'},
+         {"nickname": "foobar", "user_id": '"$user_id_2"'}
+       ]
+     }' \
          "$tmp_dir"/profile-4.json
 
 # Force 1st user's nickname.
@@ -115,29 +127,35 @@ expect_post admin/users/restore-nickname \
             --data '{"user_id": '"$user_id_2"'}'
 
 # Nicknames when first user asks: sees its own nickname.
-expect_post client/profile \
+expect_post client/users/profiles \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
-            --data "[$user_id_2, $user_id_1]" \
+            --data '{"user_ids": ['"$user_id_2"', '"$user_id_1"']}' \
             -o "$tmp_dir"/profile-4.json
 
 expect_json_eq \
-    '[
-       {"nickname": "client-1", "user_id": '"$user_id_1"'},
-       {"nickname": "foobar", "user_id": '"$user_id_2"'}
-     ]' \
+    '{
+       "profiles":
+       [
+         {"nickname": "client-1", "user_id": '"$user_id_1"'},
+         {"nickname": "foobar", "user_id": '"$user_id_2"'}
+       ]
+     }' \
          "$tmp_dir"/profile-4.json
 
 # Nicknames when second user asks: sees overridden nickname of first user.
-expect_post client/profile \
+expect_post client/users/profiles \
             --header "Authorization: $session_token_2" \
             --header "Content-Type: application/json" \
-            --data "[$user_id_2, $user_id_1]" \
+            --data '{"user_ids": ['"$user_id_2"', '"$user_id_1"']}' \
             -o "$tmp_dir"/profile-5.json
 
 expect_json_eq \
-    '[
-       {"nickname": "overridden-1", "user_id": '"$user_id_1"'},
-       {"nickname": "foobar", "user_id": '"$user_id_2"'}
-     ]' \
+    '{
+       "profiles":
+       [
+         {"nickname": "overridden-1", "user_id": '"$user_id_1"'},
+         {"nickname": "foobar", "user_id": '"$user_id_2"'}
+       ]
+     }' \
          "$tmp_dir"/profile-5.json

@@ -4,7 +4,7 @@ use crate::webapi::client::auth;
 
 type StateHandle = deadpool_postgres::Pool;
 
-/// Middleware to validate that the request comes from known game server.
+/// Middleware to validate that the request comes from known user.
 async fn auth(
   state: axum::extract::State<StateHandle>,
   request: axum::extract::Request,

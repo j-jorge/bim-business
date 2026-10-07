@@ -40,12 +40,12 @@ session_token_1="$(jq -r .session_token "$tmp_dir"/authenticate-1.json)"
 user_id_1="$(jq -r .user_id "$tmp_dir"/authenticate-1.json)"
 
 # Remember its default nickname, for the next tests.
-expect_post client/profile \
+expect_post client/users/profiles \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
-            --data "[$user_id_1]" \
+            --data '{"user_ids": ['"$user_id_1"']}' \
             -o "$tmp_dir"/profile-1.json
-nickname_1="$(jq -r .[0].nickname "$tmp_dir"/profile-1.json)"
+nickname_1="$(jq -r .profiles[0].nickname "$tmp_dir"/profile-1.json)"
 
 # Try to set a too-long nickname.
 expect_post_error 400 client/account/update-nickname \
@@ -59,16 +59,19 @@ expect_post_error 400 client/account/update-nickname \
                   --header "Content-Type: application/json" \
                   --data '{"nickname": "fr"}'
 
-expect_post client/profile \
+expect_post client/users/profiles \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
-            --data "[$user_id_1]" \
+            --data '{"user_ids": ['"$user_id_1"']}' \
             -o "$tmp_dir"/profile-2.json
 
 expect_json_eq \
-    '[
-       {"nickname": "'"$nickname_1"'", "user_id": '"$user_id_1"'}
-     ]' \
+    '{
+       "profiles":
+       [
+         {"nickname": "'"$nickname_1"'", "user_id": '"$user_id_1"'}
+       ]
+     }' \
          "$tmp_dir"/profile-2.json
 
 # Now set a nickname fulfilling the constraints.
@@ -78,16 +81,19 @@ expect_post client/account/update-nickname \
             --data '{"nickname": " foo  "}' \
             -o "$tmp_dir"/update-nickname-1.json
 
-expect_post client/profile \
+expect_post client/users/profiles \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
-            --data "[$user_id_1]" \
+            --data '{"user_ids": ['"$user_id_1"']}' \
             -o "$tmp_dir"/profile-3.json
 
 expect_json_eq \
-    '[
-       {"nickname": "foo", "user_id": '"$user_id_1"'}
-     ]' \
+    '{
+       "profiles":
+       [
+         {"nickname": "foo", "user_id": '"$user_id_1"'}
+       ]
+     }' \
          "$tmp_dir"/profile-3.json
 
 # Second update is rejected because of the cooldown.
@@ -96,16 +102,19 @@ expect_post_error 422 client/account/update-nickname \
                   --header "Content-Type: application/json" \
                   --data '{"nickname": "bar"}'
 
-expect_post client/profile \
+expect_post client/users/profiles \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
-            --data "[$user_id_1]" \
+            --data '{"user_ids": ['"$user_id_1"']}' \
             -o "$tmp_dir"/profile-4.json
 
 expect_json_eq \
-    '[
-       {"nickname": "foo", "user_id": '"$user_id_1"'}
-     ]' \
+    '{
+       "profiles":
+       [
+         {"nickname": "foo", "user_id": '"$user_id_1"'}
+       ]
+     }' \
          "$tmp_dir"/profile-4.json
 
 # Remove the cooldown to allow a nickname change.
@@ -125,16 +134,19 @@ expect_post client/account/update-nickname \
             --data '{"nickname": "bar"}' \
             -o "$tmp_dir"/update-nickname-2.json
 
-expect_post client/profile \
+expect_post client/users/profiles \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
-            --data "[$user_id_1]" \
+            --data '{"user_ids": ['"$user_id_1"']}' \
             -o "$tmp_dir"/profile-5.json
 
 expect_json_eq \
-    '[
-       {"nickname": "bar", "user_id": '"$user_id_1"'}
-     ]' \
+    '{
+       "profiles":
+       [
+         {"nickname": "bar", "user_id": '"$user_id_1"'}
+       ]
+     }' \
          "$tmp_dir"/profile-5.json
 
 expect_post client/me \
