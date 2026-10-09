@@ -359,9 +359,7 @@ pub async fn over(
 
     db::execute_p(
       transaction,
-      r"insert into game_reward
-          values ($1, $2, $3)
-          on conflict (user_id) do update set (game_id, coins) = ($1, $3)",
+      r"insert into game_reward values ($1, $2, $3)",
       &[&game_id, p, &coins]
     )
     .await?;
