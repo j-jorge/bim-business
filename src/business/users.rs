@@ -112,6 +112,11 @@ pub async fn set_nickname(
   wanted_nickname: &str
 ) -> result::Result<time::OffsetDateTime>
 {
+  if wanted_nickname.chars().any(|c| c.is_ascii_control())
+  {
+    return Err(error::Error::Unprocessable);
+  }
+
   let nickname: &str = wanted_nickname.trim();
   let len: usize = nickname.chars().count();
 

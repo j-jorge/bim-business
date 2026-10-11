@@ -128,6 +128,16 @@ expect_post admin/app-config/update \
                       }
                     ]'
 
+# Try to set a nickname with control characters.
+for c in {0..31} 127
+do
+    hex="$(printf '%04x' "$c")"
+    expect_post_error 422 client/account/update-nickname \
+                      --header "Authorization: $session_token_1" \
+                      --header "Content-Type: application/json" \
+                      --data '{"nickname": "a\u'"${hex}"'b"}'
+done
+
 expect_post client/account/update-nickname \
             --header "Authorization: $session_token_1" \
             --header "Content-Type: application/json" \
