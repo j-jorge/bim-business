@@ -191,50 +191,14 @@ push_on_exit count_failure_on_script_error
 # failure to the test suite, and exits with an error.
 _wait_poll_file()
 {
-    if (( $# != 4 ))
+    if ! "$_test_functions_script_dir"/wait-poll-file.sh "$@"
     then
+        fail "Could not find pattern in file."
         fail_count=$((fail_count + 1))
-        fail "Expected four arguments, got $#:" "$@"
         return 1
     fi
 
-    # How many seconds to wait.
-    local seconds="$1"
-
-    # The file to observe.
-    local f="$2"
-
-    # The regular expression to search in the file.
-    local regex="$3"
-
-    # Another file to dump on error.
-    local second_file="$4"
-
-    info "Waiting for '$regex' in '$f'."
-
-    while (( seconds >= 1 ))
-    do
-        if [[ -f "$f" ]] && grep --quiet "$regex" "$f"
-        then
-            return 0
-        fi
-
-        seconds=$((seconds - 1))
-        sleep 1
-    done
-
-    fail "Could not find pattern '$regex' in '$f':"
-    cat "$f"
-
-    if [[ -s "${second_file:-}" ]]
-    then
-        fail "Second file:"
-        cat "$second_file"
-    fi
-
-    fail_count=$((fail_count + 1))
-
-    return 1
+    return 0
 }
 
 wait_server_ready()
@@ -255,43 +219,26 @@ start_server()
     # Start the database and wait for it to be up and ready.
     _db_container_name="test-$(echo -n "$test_name" \
                                     | tr -c 'a-zA-Z0-9_.\-' '.')"
-    docker run --rm --name "$_db_container_name" \
-           --env POSTGRES_USER="$_db_user" \
-           --env POSTGRES_PASSWORD="$_db_password" \
-           --env POSTGRES_DB="$_db_name" \
-           --publish 5432:"$_db_port" \
-           postgres:18 \
-           > "$tmp_dir"/postgres.out.txt \
-           2> "$tmp_dir"/postgres.err.txt \
-        &
 
-    if _wait_poll_file 60 \
-                       "$tmp_dir"/postgres.err.txt \
-                       "ready to accept connections" \
-                       "$tmp_dir"/postgres.out.txt
+    "$_test_functions_script_dir"/start-server.sh \
+                                 "$_server_binary" \
+                                 "$_db_container_name" \
+                                 "$_db_user" \
+                                 "$_db_password" \
+                                 "$_db_name" \
+                                 "$_db_port" \
+                                 "$app_port" \
+                                 "$tmp_dir" \
+                                 | tee "$tmp_dir"/start-server.txt
+
+    _server_pid="$( (grep --max-count 1 '^PID=[0-9]\+$' "$tmp_dir"/start-server.txt \
+                          | cut -d= -f2) \
+                          || true )"
+
+    if [[ -z "$_server_pid" ]]
     then
-        cat > "$tmp_dir"/secrets.json <<EOF
-{
-  "db_password": "$_db_password"
-}
-EOF
-
-        # Now that he database is up the server can start.
-        "$_server_binary" \
-            --assets "$repo_root"/assets \
-            --port "$app_port" \
-            --db-port "$_db_port" \
-            --db-name "$_db_name" \
-            --db-user "$_db_user" \
-            --secrets "$tmp_dir"/secrets.json \
-            > "$tmp_dir"/server.out.txt \
-            2> "$tmp_dir"/server.err.txt \
-            &
-            _server_pid=$!
-
-            wait_server_ready \
-                "$tmp_dir"/server.out.txt \
-                "$tmp_dir"/server.err.txt
+        fail "Failed to start the server"
+        fail_count=$((fail_count + 1))
     fi
 }
 
