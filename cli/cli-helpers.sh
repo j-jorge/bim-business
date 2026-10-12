@@ -60,7 +60,8 @@ bim_curl()
     local path="$1"
     shift
 
-    echo "Requesting '$BIM_BUSINESS_SERVER_URL/$path'."
+    [[ "${BIM_BUSINESS_CLI_SILENT:-0}" != 0 ]] \
+        || echo "Requesting '$BIM_BUSINESS_SERVER_URL/$path'."
 
     command=(curl
              --fail
