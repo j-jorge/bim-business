@@ -25,7 +25,7 @@ separator=""
 
 while [[ $# != 0 ]]
 do
-    data+="$(printf '%s{"key": "%s", "value": "%d"}' "$separator" "$1" "$2")"
+    data+="$(printf '%s{"key": "%s", "value": "%s"}' "$separator" "$1" "$2")"
     separator=','
     shift 2
 done
