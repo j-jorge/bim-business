@@ -8,7 +8,7 @@ struct Internals
 
 pub struct Service
 {
-  m_internals: tokio::sync::RwLock<Internals>
+  m_internals: tokio::sync::Mutex<Internals>
 }
 
 impl Service
@@ -16,7 +16,7 @@ impl Service
   pub fn new() -> Service
   {
     return Service {
-      m_internals: tokio::sync::RwLock::new(Internals {
+      m_internals: tokio::sync::Mutex::new(Internals {
         m_date_of_last_clean_up: time::OffsetDateTime::now_utc()
       })
     };
@@ -24,34 +24,37 @@ impl Service
 
   pub async fn maybe_run_clean_up_job(&self, db_pool: &db::Pool) -> ()
   {
-    if let Ok(mut client) = db_pool.get().await
+    let Ok(mut internals) = self.m_internals.try_lock()
+    else
     {
-      let now = time::OffsetDateTime::now_utc();
+      return;
+    };
 
-      {
-        let internals = self.m_internals.read().await;
-        let clean_up_delay = std::time::Duration::from_mins(
-          app_config::get_u64(&client, "games.clean_up_interval.minutes", 10)
-            .await
-        );
+    let Ok(mut client) = db_pool.get().await
+    else
+    {
+      return;
+    };
 
-        if internals.m_date_of_last_clean_up + clean_up_delay > now
-        {
-          return;
-        }
-      }
+    let now = time::OffsetDateTime::now_utc();
+    let clean_up_delay = std::time::Duration::from_mins(
+      app_config::get_u64(&client, "games.clean_up_interval.minutes", 10).await
+    );
 
-      let reward_lifespan = std::time::Duration::from_mins(
-        app_config::get_u64(&client, "games.reward_lifespan.minutes", 1).await
-      );
+    if internals.m_date_of_last_clean_up + clean_up_delay > now
+    {
+      return;
+    }
 
-      let auto_removal_duration = std::time::Duration::from_mins(
-        app_config::get_u64(&client, "games.auto_removal.minutes", 30).await
-      );
+    let reward_lifespan = std::time::Duration::from_mins(
+      app_config::get_u64(&client, "games.reward_lifespan.minutes", 1).await
+    );
 
-      let mut internals = self.m_internals.write().await;
+    let auto_removal_duration = std::time::Duration::from_mins(
+      app_config::get_u64(&client, "games.auto_removal.minutes", 30).await
+    );
 
-      if let Ok(transaction) = client.transaction().await
+    if let Ok(transaction) = client.transaction().await
         // Remove non-claimed rewards.
         && let Ok(_) = db::execute_p(
           &transaction,
@@ -80,9 +83,8 @@ impl Service
         )
         .await
         && let Ok(_) = transaction.commit().await
-      {
-        internals.m_date_of_last_clean_up = now;
-      }
+    {
+      internals.m_date_of_last_clean_up = now;
     }
   }
 }
