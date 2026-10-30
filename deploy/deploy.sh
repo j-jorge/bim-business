@@ -206,6 +206,7 @@ then
     rsync --progress "$tmp_dir"/bim-business-pre-deploy.sh "$bim_host:/tmp/"
     destination_exec "/tmp/bim-business-pre-deploy.sh && \
                      rm /tmp/bim-business-pre-deploy.sh"
+    # This will fail on first run :(
     rsync --progress "$bim_host":"$destination_path/../$bim_tag-$now.tgz" .
 else
     "$tmp_dir"/bim-business-pre-deploy.sh

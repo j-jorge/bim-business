@@ -3,6 +3,19 @@ use crate::business;
 
 use axum::response::IntoResponse;
 
+async fn refresh_session(
+  db: &deadpool_postgres::Pool,
+  token: &str
+) -> business::result::Result<Option<i64>>
+{
+  let mut client: deadpool_postgres::Client = db.get().await?;
+  let t: deadpool_postgres::Transaction<'_> = client.transaction().await?;
+  let user_id: Option<i64> = business::sessions::refresh(&t, token).await?;
+  t.commit().await?;
+
+  return Ok(user_id);
+}
+
 /// Middleware to validate that the request comes from a valid user session.
 pub async fn validate_request(
   db: &deadpool_postgres::Pool,
@@ -13,10 +26,7 @@ pub async fn validate_request(
   if let Some(header) = request.headers().get(axum::http::header::AUTHORIZATION)
     && let Ok(token_str) = header.to_str()
   {
-    if let Ok(mut client) = db.get().await
-      && let Ok(t) = client.transaction().await
-      && let Ok(user_id_opt) = business::sessions::refresh(&t, token_str).await
-      && let Ok(_) = t.commit().await
+    if let Ok(user_id_opt) = refresh_session(db, token_str).await
     {
       if let Some(user_id) = user_id_opt
       {

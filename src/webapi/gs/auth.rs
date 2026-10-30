@@ -3,6 +3,18 @@ use crate::business;
 
 use axum::response::IntoResponse;
 
+async fn find_server(
+  db_pool: &deadpool_postgres::Pool,
+  token: &str
+) -> business::result::Result<Option<i64>>
+{
+  let client: deadpool_postgres::Client = db_pool.get().await?;
+  let server_id: Option<i64> =
+    business::game_servers::validate_token(&client, token).await?;
+
+  return Ok(server_id);
+}
+
 /// Middleware to validate that the request comes from a game server.
 pub async fn validate_request(
   db_pool: &deadpool_postgres::Pool,
@@ -13,9 +25,7 @@ pub async fn validate_request(
   if let Some(header) = request.headers().get(axum::http::header::AUTHORIZATION)
     && let Ok(token_str) = header.to_str()
   {
-    if let Ok(db) = db_pool.get().await
-      && let Ok(server_id_opt) =
-        business::game_servers::validate_token(&db, token_str).await
+    if let Ok(server_id_opt) = find_server(db_pool, token_str).await
     {
       if let Some(server_id) = server_id_opt
       {
