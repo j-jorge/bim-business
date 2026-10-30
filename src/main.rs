@@ -30,6 +30,10 @@ struct Arguments
   #[argh(option)]
   db_user: String,
 
+  /// number of pooled connections to the database.
+  #[argh(option)]
+  db_pool_size: Option<usize>,
+
   /// the file from which to read the secrets.
   #[argh(option)]
   secrets: std::path::PathBuf,
@@ -82,6 +86,19 @@ async fn main() -> Result<()>
   deadpool_config.dbname = Some(arguments.db_name.clone());
   deadpool_config.user = Some(arguments.db_user.clone());
   deadpool_config.password = Some(secrets.db_password);
+
+  let deadpool_timeout: Option<std::time::Duration> =
+    Some(std::time::Duration::from_secs(5));
+
+  deadpool_config.pool = Some(deadpool_postgres::PoolConfig {
+    max_size: arguments.db_pool_size.unwrap_or(2),
+    timeouts: deadpool_postgres::Timeouts {
+      wait: deadpool_timeout,
+      create: deadpool_timeout,
+      recycle: deadpool_timeout
+    },
+    ..Default::default()
+  });
 
   // Keep a pool of connections to the database. I wanted to share the
   // tokio_postgres::Client with the services but it would not pass
