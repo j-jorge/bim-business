@@ -167,9 +167,9 @@ impl GameServers
     )
     .await?;
 
-    let internals = &mut self.m_internals.write().await;
-
     let removal_delay: std::time::Duration = clean_up_delay(t).await;
+
+    let internals = &mut self.m_internals.write().await;
     let removal_date = std::time::Instant::now() + removal_delay;
 
     if let Some(ref mut info) =
@@ -251,8 +251,8 @@ impl GameServers
     let now = std::time::Instant::now();
 
     {
-      let internals = &self.m_internals.read().await;
       let clean_up_delay = clean_up_delay(db).await;
+      let internals = &self.m_internals.read().await;
 
       if internals.m_date_of_last_clean_up + clean_up_delay > now
       {
