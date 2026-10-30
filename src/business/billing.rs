@@ -27,25 +27,63 @@ struct GoogleValidationResources
 {
   package_id: String,
   credentials: google_cloud_auth::credentials::Credentials,
-  http_client: reqwest::Client,
-  headers: http::HeaderMap
+  http_client: reqwest::Client
+}
+
+async fn record_purchase_in_db(
+  db_pool: deadpool_postgres::Pool,
+  user_id: i64,
+  token: &str,
+  order_id: &str,
+  coins: i64
+) -> result::Result<()>
+{
+  let mut client: db::Client = db_pool.get().await?;
+  let t: db::Transaction<'_> = client.transaction().await?;
+
+  // Record the purchase.
+  let user_opt: Option<tokio_postgres::Row> = db::query_opt_p(
+    &t,
+    "insert into play_store_purchase
+     values ($1, $2, $3)
+     on conflict do nothing
+     returning user_id",
+    &[&order_id, &token, &user_id]
+  )
+  .await?;
+
+  // If insert failed (the order is already in the table), it means
+  // that something weird is going on. We would be applying a purchase
+  // that was previously non-consumed and yet is recorded in the
+  // table.
+  if user_opt.is_none()
+  {
+    return Err(error::Error::BadParameter);
+  }
+
+  wallet::coins_transaction(&t, user_id, order_id, coins).await?;
+  t.commit().await?;
+
+  return Ok(());
 }
 
 async fn validate_with_google(
-  google: &mut GoogleValidationResources,
-  t: &db::Transaction<'_>,
+  google: &GoogleValidationResources,
+  db_pool: deadpool_postgres::Pool,
   user_id: i64,
   sku: &str,
-  token: &str
-) -> result::Result<(String, i32)>
+  token: &str,
+  coins_unit: i32
+) -> result::Result<i64>
 {
-  if let google_cloud_auth::credentials::CacheableResource::New {
+  let google_cloud_auth::credentials::CacheableResource::New {
     entity_tag: _,
-    data: r
+    data: headers
   } = google.credentials.headers(http::Extensions::new()).await?
+  else
   {
-    google.headers = r;
-  }
+    return Err(error::Error::Internal);
+  };
 
   const ENDPOINT: &str =
     "https://androidpublisher.googleapis.com/androidpublisher/v3/applications";
@@ -59,7 +97,7 @@ async fn validate_with_google(
   let response: reqwest::Response = google
     .http_client
     .get(&google_validation_url)
-    .headers(google.headers.clone())
+    .headers(headers.clone())
     .send()
     .await?
     .error_for_status()?;
@@ -78,26 +116,6 @@ async fn validate_with_google(
     return Err(error::Error::BadParameter);
   }
 
-  // Record the purchase.
-  let user_opt: Option<tokio_postgres::Row> = db::query_opt_p(
-    t,
-    "insert into play_store_purchase
-     values ($1, $2, $3)
-     on conflict do nothing
-     returning user_id",
-    &[&purchase.order_id, &token, &user_id]
-  )
-  .await?;
-
-  // If insert failed (the order is already in the table), it means
-  // that something weird is going on. We would be applying a
-  // purchase that is both non-consumed and yet is recorded in the
-  // table.
-  if user_opt.is_none()
-  {
-    return Err(error::Error::BadParameter);
-  }
-
   let google_consume_url: String = format!(
     "{}/{}/purchases/products/{}/tokens/{}:consume",
     ENDPOINT, google.package_id, sku, token
@@ -106,17 +124,35 @@ async fn validate_with_google(
   google
     .http_client
     .post(&google_consume_url)
-    .headers(google.headers.clone())
+    .headers(headers)
     .send()
     .await?
     .error_for_status()?;
 
-  return Ok((purchase.order_id, purchase.quantity.unwrap_or(1)));
+  let coins: i64 = coins_unit as i64 * purchase.quantity.unwrap_or(1) as i64;
+
+  if let Err(e) =
+    record_purchase_in_db(db_pool, user_id, token, &purchase.order_id, coins)
+      .await
+  {
+    tracing::error!(
+      "Failed to store purchase {} of user {} (sku={}, token={}, coins={}): {}",
+      &purchase.order_id,
+      user_id,
+      sku,
+      token,
+      coins,
+      &e
+    );
+    return Err(e);
+  }
+
+  return Ok(coins);
 }
 
 pub struct Billing
 {
-  m_google: Option<tokio::sync::RwLock<GoogleValidationResources>>
+  m_google: Option<GoogleValidationResources>
 }
 
 impl Billing
@@ -136,15 +172,16 @@ impl Billing
       ]);
 
       return Ok(Billing {
-        m_google: Some(tokio::sync::RwLock::new(GoogleValidationResources {
+        m_google: Some(GoogleValidationResources {
           package_id: config.package_id,
           credentials:
             google_cloud_auth::credentials::service_account::Builder::new(key)
               .with_access_specifier(access_specifier)
               .build()?,
-          http_client: reqwest::Client::new(),
-          headers: http::HeaderMap::new()
-        }))
+          http_client: reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()?
+        })
       });
     }
 
@@ -155,31 +192,37 @@ impl Billing
 
   pub async fn validate_purchase(
     &self,
-    t: &db::Transaction<'_>,
+    db_pool: deadpool_postgres::Pool,
     user_id: i64,
     sku: &str,
     token: &str
   ) -> result::Result<i64>
   {
-    let coins_unit: i32 =
-      db::query_opt_p(t, "select coins from shop where id = $1", &[&sku])
-        .await?
-        .ok_or(error::Error::BadParameter)?
-        .get(0);
+    let coins_unit: i32 = db::query_opt_p(
+      &db_pool.get().await?,
+      "select coins from shop where id = $1",
+      &[&sku]
+    )
+    .await?
+    .ok_or(error::Error::BadParameter)?
+    .get(0);
 
-    let (reason, quantity) = if let Some(ref google_lock) = self.m_google
+    let coins: i64 = if let Some(ref google) = self.m_google
     {
-      let google = &mut google_lock.write().await;
-      validate_with_google(google, t, user_id, sku, token).await?
+      validate_with_google(google, db_pool, user_id, sku, token, coins_unit)
+        .await?
     }
     else
     {
-      (String::from("purchase"), 1)
+      // When Google API is not configured (e.g. tests).
+      let mut client: db::Client = db_pool.get().await?;
+      let t: db::Transaction<'_> = client.transaction().await?;
+      wallet::coins_transaction(&t, user_id, "purchase", coins_unit as i64)
+        .await?;
+      t.commit().await?;
+
+      coins_unit as i64
     };
-
-    let coins: i64 = coins_unit as i64 * quantity as i64;
-
-    wallet::coins_transaction(t, user_id, &reason, coins).await?;
 
     return Ok(coins);
   }

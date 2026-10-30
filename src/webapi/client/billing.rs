@@ -39,16 +39,11 @@ async fn validate_purchase(
   axum::Json(request): axum::Json<ValidatePurchaseRequest>
 ) -> business::result::Result<axum::Json<ValidatePurchaseResponse>>
 {
-  let mut client: business::db::Client = state.0.db.get().await?;
-  let transaction: business::db::Transaction<'_> = client.transaction().await?;
-
   let coins: i64 = state
     .0
     .billing_service
-    .validate_purchase(&transaction, user_id.0, &request.sku, &request.token)
+    .validate_purchase(state.0.db, user_id.0, &request.sku, &request.token)
     .await?;
-
-  transaction.commit().await?;
 
   return Ok(axum::Json(ValidatePurchaseResponse {
     coins
