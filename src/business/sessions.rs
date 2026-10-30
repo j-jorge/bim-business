@@ -24,7 +24,7 @@ async fn session_validity_duration(
 
 pub struct Service
 {
-  m_internals: tokio::sync::RwLock<Internals>
+  m_internals: tokio::sync::Mutex<Internals>
 }
 
 impl Service
@@ -32,7 +32,7 @@ impl Service
   pub fn new() -> Service
   {
     return Service {
-      m_internals: tokio::sync::RwLock::new(Internals {
+      m_internals: tokio::sync::Mutex::new(Internals {
         m_date_of_last_clean_up: time::OffsetDateTime::now_utc()
       })
     };
@@ -162,19 +162,20 @@ impl Service
     now: &time::OffsetDateTime
   ) -> result::Result<()>
   {
+    let Ok(mut internals) = self.m_internals.try_lock()
+    else
     {
-      let internals = self.m_internals.read().await;
-      let clean_up_delay = std::time::Duration::from_mins(
-        app_config::get_u64(db, "sessions.clean_up_interval.minutes", 60).await
-      );
+      return Ok(());
+    };
 
-      if internals.m_date_of_last_clean_up + clean_up_delay > *now
-      {
-        return Ok(());
-      }
+    let clean_up_delay = std::time::Duration::from_mins(
+      app_config::get_u64(db, "sessions.clean_up_interval.minutes", 60).await
+    );
+
+    if internals.m_date_of_last_clean_up + clean_up_delay > *now
+    {
+      return Ok(());
     }
-
-    let mut internals = self.m_internals.write().await;
 
     db::execute_p(db, "delete from sessions where expires_at <= $1", &[&now])
       .await?;
